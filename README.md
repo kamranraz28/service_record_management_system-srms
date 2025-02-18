@@ -97,7 +97,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Contact
 
-Shakil Hossain  
-Email: [shakilaust81@gmail.com](mailto:shakilaust81@gmail.com)  
-Phone: 01722878226  
-GitHub: [yourusername](https://github.com/yourusername)
+Md Kamran Hosan  
+Email: [mdkamranhosan98@gmail.com](mailto:mdkamranhosan98@gmail.com)  
+Phone: 01609758377
+GitHub: [yourusername](https://github.com/kamranraz28)
