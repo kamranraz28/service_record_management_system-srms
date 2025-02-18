@@ -33,16 +33,20 @@
         <div class="table-responsive p-3">
 
             <div class="row justify-content-center align-items-center g-1">
-                <div class="col">
-                    <form action="{{ url()->current() }}" method="GET">
-                        <div class="position-relative">
-                            <span
-                                class="material-icons-outlined position-absolute translate-middle-y top-50 fs-5 start-0 ms-3">search</span>
-                            <input type="text" wire:model.debounce.200ms="searchQuery" class="form-control px-5"
-                                placeholder="Search...">
-                        </div>
-                    </form>
-                </div>
+            <div class="col">
+    <form action="{{ route('admin.searchEmployee') }}" method="POST">
+        @csrf
+        <div class="input-group">
+            <span class="material-icons-outlined position-absolute translate-middle-y top-50 fs-5 start-0 ms-3">search</span>
+            <input type="text" name="id" class="form-control px-5" placeholder="Search...">
+            <button type="submit" class="btn btn-success ms-3">
+                <i class="fa fa-search" aria-hidden="true"></i>
+                {{ trans('global.search') }}
+            </button>
+        </div>
+    </form>
+</div>
+
                 <div class="col text-end">
 
                     @can('employee_list_create')

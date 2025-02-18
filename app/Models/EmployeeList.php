@@ -47,6 +47,7 @@ class EmployeeList extends Model implements HasMedia
         'confirmation_in_service',
         'electric_signature',
         'employee_photo',
+        'ptr_upload',
     ];
 
     protected $fillable = [
@@ -93,13 +94,15 @@ class EmployeeList extends Model implements HasMedia
         'updated_at',
         'deleted_at',
         'approved',
-        'approved_by',
+        'approveby',
         'created_by',
 		'designation_id',
 		'first_designation_id',
 		'freedomfighter_name',
 		'freedomfighter_address',
 		'freedomfighter_go',
+        'project_to_revenue_memo',
+        'project_to_revenue_date',
     ];
 
     protected function serializeDate(DateTimeInterface $date)
@@ -117,12 +120,12 @@ class EmployeeList extends Model implements HasMedia
     {
         return $this->belongsTo(Batch::class, 'batch_id');
     }
-	
+
 	public function designation()
     {
         return $this->belongsTo(Designation::class, 'designation_id');
     }
-	
+
 	public function first_designation()
     {
         return $this->belongsTo(Designation::class, 'first_designation_id');
@@ -198,6 +201,11 @@ class EmployeeList extends Model implements HasMedia
         return $this->getMedia('license_upload')->last();
     }
 
+    public function getPtrUploadAttribute()
+    {
+        return $this->getMedia('ptr_upload')->last();
+    }
+
     public function projectrevenue()
     {
         return $this->belongsTo(Joininginfo::class, 'joiningexaminfo_id');
@@ -207,7 +215,7 @@ class EmployeeList extends Model implements HasMedia
     {
         return $this->belongsTo(ProjectRevenueExam::class, 'joiningexaminfo_id');
     }
-	
+
 	public function cadre()
 	{
 		return $this->belongsTo(ProjectRevenuelone::class, 'projectrevenue_id');
@@ -218,7 +226,7 @@ class EmployeeList extends Model implements HasMedia
         return $this->belongsTo(ProjectRevenueExam::class, 'name_of_exam_id');
     }
 
-    public function departmental_exam() 
+    public function departmental_exam()
     {
         return $this->belongsTo(ProjectRevenuelone::class, 'departmental_exam_id');
     }
@@ -227,12 +235,12 @@ class EmployeeList extends Model implements HasMedia
     {
         return $this->belongsTo(FreedomFighteRelation::class, 'freedomfighter_id');
     }
-   
+
     public function freedom_fighter()
     {
         return $this->belongsTo(FreedomFighteRelation::class, 'freedomfighter_id');
     }
-   
+
 
     public function project()
     {
@@ -293,6 +301,8 @@ class EmployeeList extends Model implements HasMedia
     {
         return $this->getMedia('date_of_gazette_if_any')->last();
     }
+
+
 
     public function getDateOfRegularizationAttribute($value)
     {
@@ -367,7 +377,7 @@ class EmployeeList extends Model implements HasMedia
         return $file;
     }
 
-    
+
     public function detail()
     {
         return $this->hasOne(EmployeeListDetail::class, 'general_information_id');
@@ -401,7 +411,7 @@ class EmployeeList extends Model implements HasMedia
     {
         return $this->hasMany(SpouseInformatione::class, 'employee_id');
     }
-  
+
     public function employeepromotions()
     {
         return $this->hasMany(EmployeePromotion::class, 'employee_id');
@@ -470,12 +480,27 @@ class EmployeeList extends Model implements HasMedia
         return $this->hasMany(AcrMonitoring::class, 'employee_id');
     }
 
+    public function policeverifications()
+    {
+        return $this->hasMany(PoliceVerification::class, 'employee_id');
+    }
 
-    
+    public function timescales()
+    {
+        return $this->hasMany(TimeScale::class, 'employee_id');
+    }
+
+    public function others()
+    {
+        return $this->hasMany(Other::class, 'employee_id');
+    }
+
+
+
     public static function generateEmployeeid($class)
     {
 
-    
+
         $prefix = '2201';
         $classDigit = [
             '1st' => '1',
@@ -491,7 +516,7 @@ class EmployeeList extends Model implements HasMedia
             '3rd' => 20000,
             '4th' => 50000
         ][$class];
-       
+
         $maxId = self::where('employeeid', 'like', $prefix . $classDigit . '%')
                       ->max('employeeid');
 
@@ -517,7 +542,7 @@ class EmployeeList extends Model implements HasMedia
     //         $employee->employeeid = self::generateEmployeeId($employee->class);
     //     });
     // }
-	
+
 	protected static function boot()
     {
         parent::boot();
@@ -526,37 +551,37 @@ class EmployeeList extends Model implements HasMedia
             $model->created_by = Auth::id();
         });
     }
-	
+
 	public function permanent()
 	{
 		return $this->hasOne(Addressdetaile::class, 'employee_id', 'id')
 					->where('address_type', 'permanent');
 	}
-	
+
 	public function present()
 	{
 		return $this->hasOne(Addressdetaile::class, 'employee_id', 'id')
 					->where('address_type', 'present');
 	}
-	
+
 	public function promotion()
 	{
 		return $this->hasOne(EmployeePromotion::class, 'employee_id', 'id')
 					->latest('id');
 	}
-	
+
 	public function jobhistory()
 	{
 		return $this->hasOne(JobHistory::class, 'employee_id', 'id')
 					->latest('id');
 	}
-	
+
 	public function mamlaHistory ()
 	{
 		return $this->hasMany(CriminalProsecutione::class, 'employee_id', 'id')
 					->orderBy('id', 'desc');
 	}
-	
+
 	public function allJob()
 	{
 		return $this->hasMany(JobHistory::class, 'employee_id', 'id')
@@ -569,22 +594,27 @@ class EmployeeList extends Model implements HasMedia
 		return $this->hasMany(Training::class, 'employee_id', 'id')
 					->orderBy('id', 'desc');
 	}
-	
+
 	public function educationHistory()
 	{
 		return $this->hasMany(EducationInformatione::class, 'employee_id', 'id')
 					->orderBy('id', 'desc');
 	}
-	
+
 	public function office()
 	{
 		return $this->belongsTo(User::class, 'created_by', 'id');
 	}
 
+    public function approve_user()
+	{
+		return $this->belongsTo(User::class, 'approveby', 'id');
+	}
 
-	
 
 
 
-    
+
+
+
 }

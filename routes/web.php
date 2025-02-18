@@ -19,13 +19,17 @@ Route::get('/home', function () {
 Auth::routes(['register' => false]);
 Route::get('dfo', [EmployeeListController::class,'dfo'])->name('dfo');
 Route::group(['prefix' => 'admin', 'as' => 'admin.', 'namespace' => 'Admin', 'middleware' => ['auth', '2fa']], function () {
-   
+
     Route::get('add-employee', [EmployeeListController::class,'Commonemployeecreate'])->name('creatrmployee');
     Route::get('show-employee', [EmployeeListController::class,'commonemployeeshow'])->name('commonemployeeshow');
     Route::get('employee-data/{id}', [EmployeeListController::class,'employeedata'])->name('employeedata');
     Route::get('employee-pdf/{id}', [EmployeeListController::class,'employeedata_pdf'])->name('employeedata.pdf');
+    Route::post('search-retirement', [EmployeeListController::class,'search_retirement'])->name('search_retirement');
+
+    Route::post('search-employee', [EmployeeListController::class,'searchEmployee'])->name('searchEmployee');
 
     Route::get('upcoming_retirement_list', [EmployeeListController::class,'upcoming_retirement_list'])->name('upcoming_retirement_list');
+    Route::get('entry_list', [EmployeeListController::class,'entry_list'])->name('entry_list');
     Route::get('transfer', [EmployeeListController::class,'transfer'])->name('transfer');
     Route::get('transfer-list', [EmployeeListController::class,'transferList'])->name('transferList');
 
@@ -34,11 +38,25 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'namespace' => 'Admin', 'mi
     Route::post('/approve', [EmployeeListController::class, 'approve'])->name('employee.approve');
 
 	//Reports
+    Route::get('three_months_report_filtering', [EmployeeListController::class,'three_months_report_designation'])->name('three_months_report_designation');
+    Route::post('three_months_designation_report_download', [EmployeeListController::class, 'downloadThreeMonthsDesignation'])->name('downloadThreeMonthsDesignation');
+    Route::post('three_months_district_report_download', [EmployeeListController::class, 'downloadThreeMonthsDistrict'])->name('downloadThreeMonthsDistrict');
+    Route::post('three_months_quota_report_download', [EmployeeListController::class, 'downloadThreeMonthsQuota'])->name('downloadThreeMonthsQuota');
+    Route::post('three_months_circle_report_download', [EmployeeListController::class, 'downloadThreeMonthsCircle'])->name('downloadThreeMonthsCircle');
+    Route::post('three_months_division_report_download', [EmployeeListController::class, 'downloadThreeMonthsDivision'])->name('downloadThreeMonthsDivision');
+    Route::post('three_months_multiple_report_download', [EmployeeListController::class, 'downloadThreeMonthsMultiple'])->name('downloadThreeMonthsMultiple');
+    Route::post('three_months_circle_office_report_download', [EmployeeListController::class, 'downloadThreeMonthsCircleOffice'])->name('downloadThreeMonthsCircleOffice');
+
 	Route::get('three_months_report', [EmployeeListController::class,'three_months_report'])->name('three_months_report');
 	Route::get('three_months_report_download', [EmployeeListController::class,'downloadThreeMonthsReport'])->name('downloadThreeMonthsReport');
 	Route::get('seniority_list_report', [EmployeeListController::class,'seniority_list_report'])->name('seniority_list_report');
 	Route::get('seniority_list_report_download', [EmployeeListController::class,'seniority_list_report_download'])->name('seniority_list_report_download');
 
+    Route::post('seniority_list_designation_report_download', [EmployeeListController::class, 'downloadSeniorityListDesignation'])->name('downloadSeniorityListDesignation');
+
+    Route::post('search-designation-three', [EmployeeListController::class,'search_designation_three'])->name('search_designation_three');
+
+    Route::post('search-district-three', [EmployeeListController::class,'search_district_three'])->name('search_district_three');
 
    Route::get('/', 'HomeController@index')->name('home');
     // Permissions
@@ -287,6 +305,24 @@ Route::get('admin/addressdetailes/present-address', [AddressdetaileController::c
     Route::post('acr-monitorings/ckmedia', 'AcrMonitoringController@storeCKEditorImages')->name('acr-monitorings.storeCKEditorImages');
     Route::resource('acr-monitorings', 'AcrMonitoringController');
 
+    // Police Verification
+    Route::delete('police-verification/destroy', 'PoliceVerificationController@massDestroy')->name('police-verification.massDestroy');
+    Route::post('police-verification/media', 'PoliceVerificationController@storeMedia')->name('police-verification.storeMedia');
+    Route::post('police-verification/ckmedia', 'PoliceVerificationController@storeCKEditorImages')->name('police-verification.storeCKEditorImages');
+    Route::resource('police-verification', 'PoliceVerificationController');
+
+    // Time Scale
+    Route::delete('time-scale/destroy', 'TimeScaleController@massDestroy')->name('time-scale.massDestroy');
+    Route::post('time-scale/media', 'TimeScaleController@storeMedia')->name('time-scale.storeMedia');
+    Route::post('time-scale/ckmedia', 'TimeScaleController@storeCKEditorImages')->name('time-scale.storeCKEditorImages');
+    Route::resource('time-scale', 'TimeScaleController');
+
+    // Time Scale
+    Route::delete('other/destroy', 'OtherController@massDestroy')->name('other.massDestroy');
+    Route::post('other/media', 'OtherController@storeMedia')->name('other.storeMedia');
+    Route::post('other/ckmedia', 'OtherController@storeCKEditorImages')->name('other.storeCKEditorImages');
+    Route::resource('other', 'OtherController');
+
     // Audit Logs
     Route::resource('audit-logs', 'AuditLogsController', ['except' => ['create', 'store', 'edit', 'update', 'destroy']]);
 
@@ -383,27 +419,27 @@ Route::get('admin/addressdetailes/present-address', [AddressdetaileController::c
         Route::post('forest-states/parse-csv-import', 'ForestStatesController@parseCsvImport')->name('forest-states.parseCsvImport');
         Route::post('forest-states/process-csv-import', 'ForestStatesController@processCsvImport')->name('forest-states.processCsvImport');
         Route::resource('forest-states', 'ForestStatesController');
-    
+
         // Forest Ranges
         Route::delete('forest-ranges/destroy', 'ForestRangesController@massDestroy')->name('forest-ranges.massDestroy');
         Route::resource('forest-ranges', 'ForestRangesController');
-    
+
         // Forest Beats
         Route::delete('forest-beats/destroy', 'ForestBeatsController@massDestroy')->name('forest-beats.massDestroy');
         Route::resource('forest-beats', 'ForestBeatsController');
-    
+
         // Forest Divisions
         Route::delete('forest-divisions/destroy', 'ForestDivisionsController@massDestroy')->name('forest-divisions.massDestroy');
         Route::resource('forest-divisions', 'ForestDivisionsController');
-    
+
         // Exam Degree
         Route::delete('exam-degrees/destroy', 'ExamDegreeController@massDestroy')->name('exam-degrees.massDestroy');
         Route::resource('exam-degrees', 'ExamDegreeController');
-    
+
         // Result Group
         Route::delete('result-groups/destroy', 'ResultGroupController@massDestroy')->name('result-groups.massDestroy');
         Route::resource('result-groups', 'ResultGroupController');
-    
+
         // Result
         Route::delete('results/destroy', 'ResultController@massDestroy')->name('results.massDestroy');
         Route::resource('results', 'ResultController');
@@ -420,7 +456,7 @@ Route::get('admin/addressdetailes/present-address', [AddressdetaileController::c
     // Travel Title
     Route::delete('travel-titles/destroy', 'TravelTitleController@massDestroy')->name('travel-titles.massDestroy');
     Route::resource('travel-titles', 'TravelTitleController');
-    
+
     });
 Route::group(['prefix' => 'profile', 'as' => 'profile.', 'namespace' => 'Auth', 'middleware' => ['auth', '2fa']], function () {
     // Change password

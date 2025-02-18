@@ -29,7 +29,8 @@
 
         @can('employee_detail_access')
             <li
-                class="c-sidebar-nav-dropdown {{ request()->is('admin/employee-lists*') ? 'c-show' : '' }} {{ request()->is('admin/education-informationes*') ? 'c-show' : '' }} {{ request()->is('admin/professionales*') ? 'c-show' : '' }} {{ request()->is('admin/addressdetailes*') ? 'c-show' : '' }} {{ request()->is('admin/emergence-contactes*') ? 'c-show' : '' }} {{ request()->is('admin/spouse-informationes*') ? 'c-show' : '' }} {{ request()->is('admin/children*') ? 'c-show' : '' }} {{ request()->is('admin/job-histories*') ? 'c-show' : '' }} {{ request()->is('admin/employee-promotions*') ? 'c-show' : '' }} {{ request()->is('admin/leave-records*') ? 'c-show' : '' }} {{ request()->is('admin/service-particulars*') ? 'c-show' : '' }} {{ request()->is('admin/trainings*') ? 'c-show' : '' }} {{ request()->is('admin/travel-records*') ? 'c-show' : '' }} {{ request()->is('admin/foreign-travel-personals*') ? 'c-show' : '' }} {{ request()->is('admin/social-ass-pr-attachments*') ? 'c-show' : '' }} {{ request()->is('admin/extracurriculams*') ? 'c-show' : '' }} {{ request()->is('admin/publications*') ? 'c-show' : '' }} {{ request()->is('admin/awards*') ? 'c-show' : '' }} {{ request()->is('admin/other-service-jobs*') ? 'c-show' : '' }} {{ request()->is('admin/languages*') ? 'c-show' : '' }} {{ request()->is('admin/criminal-prosecutiones*') ? 'c-show' : '' }} {{ request()->is('admin/criminalpro-disciplinaries*') ? 'c-show' : '' }} {{ request()->is('admin/acr-monitorings*') ? 'c-show' : '' }}">
+                class="c-sidebar-nav-dropdown {{ request()->is('admin/employee-lists*') ? 'c-show' : '' }} {{ request()->is('admin/education-informationes*') ? 'c-show' : '' }} {{ request()->is('admin/professionales*') ? 'c-show' : '' }} {{ request()->is('admin/addressdetailes*') ? 'c-show' : '' }} {{ request()->is('admin/emergence-contactes*') ? 'c-show' : '' }} {{ request()->is('admin/spouse-informationes*') ? 'c-show' : '' }} {{ request()->is('admin/children*') ? 'c-show' : '' }} {{ request()->is('admin/job-histories*') ? 'c-show' : '' }} {{ request()->is('admin/employee-promotions*') ? 'c-show' : '' }} {{ request()->is('admin/leave-records*') ? 'c-show' : '' }} {{ request()->is('admin/service-particulars*') ? 'c-show' : '' }} {{ request()->is('admin/trainings*') ? 'c-show' : '' }} {{ request()->is('admin/travel-records*') ? 'c-show' : '' }} {{ request()->is('admin/foreign-travel-personals*') ? 'c-show' : '' }} {{ request()->is('admin/social-ass-pr-attachments*') ? 'c-show' : '' }} {{ request()->is('admin/extracurriculams*') ? 'c-show' : '' }} {{ request()->is('admin/publications*') ? 'c-show' : '' }} {{ request()->is('admin/awards*') ? 'c-show' : '' }} {{ request()->is('admin/other-service-jobs*') ? 'c-show' : '' }} {{ request()->is('admin/languages*') ? 'c-show' : '' }} {{ request()->is('admin/criminal-prosecutiones*') ? 'c-show' : '' }} {{ request()->is('admin/criminalpro-discip
+                linaries*') ? 'c-show' : '' }} {{ request()->is('admin/acr-monitorings*') ? 'c-show' : '' }}">
                 <a class="c-sidebar-nav-dropdown-toggle" href="#">
                     <i class="fa-fw fas fa-id-card-alt c-sidebar-nav-icon">
 
@@ -295,7 +296,6 @@
                                 <i class="fa-fw fas fa-angle-right c-sidebar-nav-icon">
 
                                 </i>
-                                {{ trans('cruds.acrMonitoring.title') }}
                             </a>
                         </li>
                     @endcan
@@ -868,9 +868,9 @@
                     {{ trans('cruds.employeeList.dfo') }}
                 </a>
             </li>
-			
+
         @endcan
-		
+
 		@can('dfo')
             <li class="c-sidebar-nav-item">
                 <a href="{{ route('admin.transfer') }}"
@@ -881,7 +881,7 @@
                     {{ trans('cruds.employeeList.fields.transfer') }}
                 </a>
             </li>
-			
+
 			<li class="c-sidebar-nav-item">
                 <a href="{{ route('admin.transferList') }}"
                     class="c-sidebar-nav-link {{ request()->is('admin/transfer-list') || request()->is('transfer-list/*') ? 'c-active' : '' }}">
@@ -905,7 +905,24 @@
                 </a>
             </li>
         @endcan
-		
+
+
+        @can('entry_list_access')
+            <li class="c-sidebar-nav-item">
+                <a href="{{ route('admin.entry_list') }}"
+                    class="c-sidebar-nav-link {{ request()->is('admin/entry_list') || request()->is('admin/entry_list/*') ? 'c-active' : '' }}">
+                    <i class="fa fa-chart-bar c-sidebar-nav-icon">
+
+                    </i>
+                    @if (app()->getLocale()==='bn')
+                        অফিস ভিত্তিক এন্ট্রির তালিকা
+                    @else
+                        Office wise Entry List
+                    @endif
+                </a>
+            </li>
+        @endcan
+
 		@can('dfo')
             <li
                 class="c-sidebar-nav-dropdown {{ request()->is('admin/reports*') ? 'c-show' : '' }} {{ request()->is('admin/reports*') ? 'c-show' : '' }}">
@@ -934,7 +951,21 @@
                         @endif
                             </a>
                         </li>
-						
+
+                        <li class="c-sidebar-nav-item">
+                            <a href="{{ route('admin.three_months_report_designation') }}"
+                                class="c-sidebar-nav-link {{ request()->is('admin/three_months_report_designation') || request()->is('admin/three_months_report_designation/*') ? 'c-active' : '' }}">
+                                <i class="fa-fw fas fa-book c-sidebar-nav-icon">
+
+                                </i>
+                                @if (app()->getLocale() === 'bn')
+                        ত্রৈমাসিক (পদবী ভিত্তিক)
+                        @else
+						Three Months (Designation Wise)
+                        @endif
+                            </a>
+                        </li>
+
 						<li class="c-sidebar-nav-item">
                             <a href="{{ route('admin.seniority_list_report') }}"
                                 class="c-sidebar-nav-link {{ request()->is('admin/seniority_list_report') || request()->is('admin/seniority_list_report/*') ? 'c-active' : '' }}">
@@ -964,8 +995,8 @@
                 </ul>
             </li>
         @endcan
-		
-		
+
+
 
         @can('faq_management_access')
             <li

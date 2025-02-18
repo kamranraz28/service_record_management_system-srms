@@ -214,10 +214,10 @@
 
                             <span class="help-block">{{ trans('cruds.employeeList.fields.gender_helper') }}</span>
                         </div>
-						
-                        
+
+
                         @livewire('religion')
-						
+
 						<div class="form-group">
                         <label for="designation_id">পদবি (বর্তমানে যে পদে কর্মরত আছেন)*</label>
                         <select class="form-select select2 {{ $errors->has('designation') ? 'is-invalid' : '' }}"
@@ -236,15 +236,15 @@
                         <span class="help-block">{{ trans('cruds.jobHistory.fields.designation_helper') }}</span>
                     </div>
                     </div>
-					
-					
-					
-					
-					
-					
+
+
+
+
+
+
 
                 </div>
-				
+
                 {{-- <h5 class="text-secondary mt-3"> Personel information</h5> --}}
                 <div class="card border-secondary border p-4">
                     <div class="row row-cols-3">
@@ -796,6 +796,72 @@
                             <span
                                 class="help-block">{{ trans('cruds.employeeList.fields.fjoining_letter_helper') }}</span>
                         </div>
+
+
+                        <div class="form-group">
+                            <label for="project_to_revenue_memo">
+                                @if (app()->getLocale() === 'bn')
+                                প্রকল্প থেকে রাজস্বে যোগদানের অফিস আদেশ/স্মারক নম্বর
+                                @else
+                                    Project to Revenue joining Office Order/Memo Number
+                                @endif
+                            </label>
+                            <input class="form-control {{ $errors->has('project_to_revenue_memo') ? 'is-invalid' : '' }}"
+                                type="text" name="project_to_revenue_memo" id="project_to_revenue_memo"
+                                value="{{ old('project_to_revenue_memo', '') }}">
+                            @if ($errors->has('project_to_revenue_memo'))
+                                <div class="invalid-feedback">
+                                    {{ $errors->first('project_to_revenue_memo') }}
+                                </div>
+                            @endif
+
+                            <span
+                                class="help-block">{{ trans('cruds.employeeList.fields.first_joining_memo_no_helper') }}</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="project_to_revenue_date">
+                                @if (app()->getLocale() === 'bn')
+                                প্রকল্প থেকে রাজস্বে যোগদানের তারিখ
+                                @else
+                                    Project to Revenue Joining Date
+                                @endif
+                            </label>
+                            <input
+                                class="form-control date {{ $errors->has('project_to_revenue_date') ? 'is-invalid' : '' }}"
+                                type="text" name="project_to_revenue_date" id="project_to_revenue_date"
+                                value="{{ old('project_to_revenue_date') }}">
+                            @if ($errors->has('project_to_revenue_date'))
+                                <div class="invalid-feedback">
+                                    {{ $errors->first('project_to_revenue_date') }}
+                                </div>
+                            @endif
+
+                            <span
+                                class="help-block">{{ trans('cruds.employeeList.fields.first_joining_g_o_date_helper') }}</span>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="ptr_upload">
+                                @if (app()->getLocale() === 'bn')
+                                প্রকল্প থেকে রাজস্বে যোগদানের আদেশ সংযোজন
+                                @else
+                                    Project to Revenue GO upload
+                                @endif
+                            </label>
+                            <div class="needsclick dropzone {{ $errors->has('ptr_upload') ? 'is-invalid' : '' }}" id="ptr_upload-dropzone">
+                            </div>
+                            @if ($errors->has('ptr_upload'))
+                                <div class="invalid-feedback">
+                                    {{ $errors->first('ptr_upload') }}
+                                </div>
+                            @endif
+
+                            <span class="help-block">{{ trans('cruds.employeeList.fields.date_of_gazette_if_any_helper') }}</span>
+                        </div>
+
+
+
                         <div class="form-group">
                             <label for="date_of_gazette">{{ trans('cruds.employeeList.fields.date_of_gazette') }}</label>
                             <input class="form-control date {{ $errors->has('date_of_gazette') ? 'is-invalid' : '' }}"
@@ -910,7 +976,7 @@
                             <span class="help-block">{{ trans('cruds.employeeList.fields.quota_helper') }}</span>
                         </div>
 
-                        
+
                             <div id="freedomfighter_field" style="display: none;">
     <div class="form-group">
         <label for="freedomfighter_id">
@@ -938,8 +1004,8 @@
         <label for="freedomfighter_name">
             মুক্তিযোদ্ধার নাম (মুক্তিযোদ্ধা কোটার ক্ষেত্রে)
         </label>
-        <input class="form-control {{ $errors->has('freedomfighter_name') ? 'is-invalid' : '' }}" 
-               type="text" name="freedomfighter_name" id="freedomfighter_name" 
+        <input class="form-control {{ $errors->has('freedomfighter_name') ? 'is-invalid' : '' }}"
+               type="text" name="freedomfighter_name" id="freedomfighter_name"
                value="{{ old('freedomfighter_name', '') }}">
         @if ($errors->has('freedomfighter_name'))
             <div class="invalid-feedback">
@@ -955,8 +1021,8 @@
         <label for="freedomfighter_address">
             মুক্তিযোদ্ধার ঠিকানা (মুক্তিযোদ্ধা কোটার ক্ষেত্রে)
         </label>
-        <input class="form-control {{ $errors->has('freedomfighter_address') ? 'is-invalid' : '' }}" 
-               type="text" name="freedomfighter_address" id="freedomfighter_address" 
+        <input class="form-control {{ $errors->has('freedomfighter_address') ? 'is-invalid' : '' }}"
+               type="text" name="freedomfighter_address" id="freedomfighter_address"
                value="{{ old('freedomfighter_address', '') }}">
         @if ($errors->has('freedomfighter_address'))
             <div class="invalid-feedback">
@@ -969,8 +1035,8 @@
         <label for="freedomfighter_go">
             মুক্তিযোদ্ধার সনদ ও গেজেট নম্বর (মুক্তিযোদ্ধা কোটার ক্ষেত্রে)
         </label>
-        <input class="form-control {{ $errors->has('freedomfighter_go') ? 'is-invalid' : '' }}" 
-               type="text" name="freedomfighter_go" id="freedomfighter_go" 
+        <input class="form-control {{ $errors->has('freedomfighter_go') ? 'is-invalid' : '' }}"
+               type="text" name="freedomfighter_go" id="freedomfighter_go"
                value="{{ old('freedomfighter_go', '') }}">
         @if ($errors->has('freedomfighter_go'))
             <div class="invalid-feedback">
@@ -1471,6 +1537,13 @@
             }
         }
     </script>
+
+
+
+
+
+
+
     <script>
         Dropzone.options.regularizationOfficeOrdeGoDropzone = {
             url: '{{ route('admin.employee-lists.storeMedia') }}',

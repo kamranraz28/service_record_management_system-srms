@@ -82,10 +82,15 @@
             <th>@if (app()->getLocale() === 'bn') নিয়োগ আদেশের তারিখ (এডহক/প্রকল্প) @else First joining G.O. Date (Adhok/Project) @endif</th>
             <th>@if (app()->getLocale() === 'bn') চাকুরিতে প্রথম যোগদানের তারিখ @else Date of First Joining @endif</th>
             <th>@if (app()->getLocale() === 'bn') বর্তমান পদে যোগদানের তারিখ @else Promotion Date @endif</th>
+            <th>@if (app()->getLocale() === 'bn') নিয়োগের খাত (রাজস্ব/ প্রকল্প/ এডহক) @else Project/Revenue/Adhoc @endif</th>
+            <th>@if (app()->getLocale() === 'bn') উন্নয়ন প্রকল্পের নাম @else Project Name @endif</th>
             <th>@if (app()->getLocale() === 'bn') প্রকল্পে নিয়োগের ক্ষেত্রে রাজস্বখাতে যোগদানের তারিখ @else Date of Regularization from Project @endif</th>
+            <th>@if (app()->getLocale() === 'bn') নিয়মিত নিযুক্তি/নিয়মিত করনের তারিখ @else Date of Regularization @endif</th>
+
             <th>@if (app()->getLocale() === 'bn') চাকুরিতে স্থায়ী কিনা @else Permanent or Not? @endif</th>
-            <th>@if (app()->getLocale() === 'bn') প্রশিক্ষণের তথ্য @else Training Details @endif</th>
-			
+            <th>@if (app()->getLocale() === 'bn') বিশেষ প্রশিক্ষণ @else Training Details @endif</th>
+            <th>@if (app()->getLocale() === 'bn') বর্তমান কর্মস্থল @else Current Office @endif</th>
+
 
         </tr>
         
@@ -152,6 +157,21 @@
                     @endif
                 </td>
                 <td>
+                    @if(app()->getLocale() === 'bn')
+                    {{$report['joining_type_bn']}}
+                    @else
+                    {{$report['joining_type_en']}}
+                    @endif
+                </td>
+                <td>
+                    @if(app()->getLocale() === 'bn')
+                    {{$report['project_name_bn']}}
+                    @else
+                    {{$report['project_name_en']}}
+                    @endif
+                </td>
+                <td></td>
+                <td>
                     @if ($report['project_id'])
                         @if (app()->getLocale() === 'bn')
                             {{ englishToBanglaNumber($report['regularization_date']) }}
@@ -184,30 +204,38 @@
                     @endif
                 </td>
                 <td>
-                    <table style="width: 100%;">
-						
-                        <tbody>
-                            @if (is_array($report['training_info']) && count($report['training_info']) > 0)
-                                @foreach($report['training_info'] as $training)
-                                    <tr>
-                                        <td>{{ $training['training_name'] }}</td>
-                                        <td>{{ $training['institute'] }}</td>
-                                    </tr>
-                                @endforeach
-                            @else
-                                <tr>
-                                    <td colspan="2">
-                                        @if (app()->getLocale() === 'bn')
-                                            প্রশিক্ষণের তথ্য নেই
-                                        @else
-                                            N/A
-                                        @endif
-                                    </td>
-                                </tr>
-                            @endif
-                        </tbody>
-                    </table>
-                </td>
+				@if ($report['training_info'])
+					@foreach($report['training_info'] as $training)
+						<span>{{ englishToBanglaNumber ($loop->iteration) }}. {{ $training['training_name'] }}</span> <br><br>
+					@endforeach
+				@else
+					-
+				@endif
+			</td>
+            <td>
+				
+                @if (app()->getLocale() === 'bn')
+					অঞ্চলঃ
+                    {{$report['circle_name_bn']}}{{$report['office_name']}} <br>
+					বিভাগঃ 
+					{{$report['division_name_bn']}} <br>
+					রেঞ্জঃ
+					{{$report['range_name_bn']}} <br>
+					বিটঃ
+					{{$report['beat_name_bn']}} <br>
+                @else
+					Circle:
+                    {{$report['circle_name_en']}}{{$report['office_name']}} <br>
+					Division:
+					{{$report['division_name_en']}} <br>
+					Range:
+					{{$report['range_name_en']}} <br>
+					Beat: 
+					{{$report['beat_name_en']}} <br>
+                @endif
+				
+				
+            </td>
             </tr>
         @endforeach
     </tbody>

@@ -193,7 +193,7 @@ class JobHistorieController extends Controller
     public function store(StoreJobHistoryRequest $request)
     {
 
-        // dd($request->all());
+        //dd($request->all());
         $jobHistory = JobHistory::create($request->all());
 
         if ($request->input('go_upload', false)) {

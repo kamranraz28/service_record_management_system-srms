@@ -167,5 +167,42 @@
                 {{ trans('cruds.acrMonitoring.title') }}
             </a>
         @endcan
+
+        @can('acr_monitoring_access')
+            <a href="{{ route('admin.police-verification.create', ['id' => $id]) }}"
+                class="nav-link {{ request()->is('admin/police-verification') || request()->is('admin/police-verification/*') ? 'c-active' : '' }}">
+                @if (app()->getLocale() === 'bn')
+                পুলিশ ভেরিফিকেশন
+                @else
+                Police Verification
+                
+                @endif
+            </a>
+        @endcan
+
+        @can('acr_monitoring_access')
+            <a href="{{ route('admin.time-scale.create', ['id' => $id]) }}"
+                class="nav-link {{ request()->is('admin/time-scale') || request()->is('admin/time-scale/*') ? 'c-active' : '' }}">
+                @if (app()->getLocale() === 'bn')
+                টাইম স্কেল/উচ্চতর গ্রেড/বেতন সংরক্ষণ
+                @else
+                Time Scale/Higher Grade/Salary Reservation
+                
+                @endif
+            </a>
+        @endcan
+
+        @can('acr_monitoring_access')
+            <a href="{{ route('admin.other.create', ['id' => $id]) }}"
+                class="nav-link {{ request()->is('admin/other') || request()->is('admin/other/*') ? 'c-active' : '' }}">
+                @if (app()->getLocale() === 'bn')
+                অন্যান্য
+                @else
+            Others
+                
+                @endif
+            </a>
+        @endcan
+        
     </div>
 </div>

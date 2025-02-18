@@ -122,6 +122,13 @@ class UpdateEmployeeListRequest extends FormRequest
                 'string',
                 'nullable',
             ],
+            'project_to_revenue_date' => [
+                'nullable',
+            ],
+            'project_to_revenue_memo' => [
+                'string',
+                'nullable',
+            ],
             'first_joining_g_o_date' => [
                 'date_format:' . config('panel.date_format'),
                 'nullable',

@@ -144,6 +144,7 @@ class SpouseInformationeController extends Controller
 
     public function store(StoreSpouseInformationeRequest $request)
     {
+        //dd($request->all());
         $spouseInformatione = SpouseInformatione::create($request->all());
 
         if ($request->input('nid_upload', false)) {

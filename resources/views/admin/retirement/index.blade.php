@@ -8,24 +8,141 @@
 <div class="row">
 
 
+
         <div class="col-md-6 h4">@if (app()->getLocale() === 'bn')
-        আসন্ন কর্মকর্তা/কর্মচারীর অবসর তালিকা (আগামী তিন মাস)
+        আসন্ন কর্মকর্তা/কর্মচারীর অবসর তালিকা
             @else
-                Upcoming Employee Retirement List (Next Three Months)
+                Upcoming Employee Retirement List
             @endif</div>
 
         <div class="col-md-6 h4 text-end">
 
             @if (app()->getLocale() === 'bn')
-                মোট কর্মকর্তা/কর্মচারী
+                মোট কর্মকর্তা/কর্মচারী: {{englishToBanglaNumber($data)}}
             @else
-                Total Employee
+                Total Employee: {{$data}}
             @endif
-            : {{ $employeeList->count() }}
 
         </div>
 
+
+	<br>
+		<br>
+
+		<div class="col-md-8 mb-3">
+    <form action="{{ route('admin.search_retirement') }}" method="POST">
+        @csrf
+
+        <!-- Start Date Field with datepicker style -->
+        <div class="col-md-8 mb-3">
+            <label for="start_date" class="control-label-b">
+			@if(app()->getLocale() === 'bn')
+				তারিখ হইতে *
+			@else
+				From Date *
+			@endif
+			</label>
+            <div class="input-group date">
+                <div class="input-group-addon">
+                    <i class="fa fa-calendar"></i>
+                </div>
+                <input name="start_date" placeholder="YYYY-MM-DD" type="text" class="form-control pull-right datepicker" id="datepicker_start" autocomplete="off" required>
+            </div>
+        </div>
+
+        <!-- End Date Field with datepicker style -->
+        <div class="col-md-8 mb-3">
+            <label for="end_date" class="control-label-b">
+			@if(app()->getLocale() === 'bn')
+				তারিখ পর্যন্ত *
+			@else
+				End Date *
+			@endif
+			</label>
+            <div class="input-group date">
+                <div class="input-group-addon">
+                    <i class="fa fa-calendar"></i>
+                </div>
+                <input name="end_date" placeholder="YYYY-MM-DD" type="text" class="form-control pull-right datepicker" id="datepicker_end" autocomplete="off" required>
+            </div>
+        </div>
+
+        <div class="col-md-8 mb-3">
+        <label for="designation_id" class="form-label">
+			@if (app()->getLocale() === 'bn')
+                পদবি
+            @else
+                Designation
+            @endif
+			</label>
+            <div class="input-group">
+                <select id="designation_id" name="designation_id" class="form-control select2 px-5">
+                    <option value="" disabled selected>{{ trans('global.pleaseSelect') }}</option>
+                    @foreach($designations as $designation)
+                        <option value="{{ $designation->id }}">{{ $designation->name_bn }}</option>
+                    @endforeach
+                </select>
+
+            </div>
+        </div>
+
+        <div class="col-md-8 mb-3">
+        <label for="circle_id" class="form-label">
+			@if (app()->getLocale() === 'bn')
+                বন অঞ্চল
+            @else
+                Forest Circle
+            @endif
+			</label>
+            <div class="input-group">
+                <select id="circle_id" name="circle_id" class="form-control select2 px-5">
+                    <option value="" disabled selected>{{ trans('global.pleaseSelect') }}</option>
+                    @foreach($forest_circles as $circle)
+                        <option value="{{ $circle->id }}">{{ $circle->name_bn }}</option>
+                    @endforeach
+                </select>
+
+            </div>
+        </div>
+
+        <div class="col-md-8 mb-3">
+        <label for="designation_id" class="form-label">
+			@if (app()->getLocale() === 'bn')
+                বন বিভাগ
+            @else
+                Forest Division
+            @endif
+			</label>
+            <div class="input-group">
+                <select id="division_id" name="division_id" class="form-control select2 px-5">
+                    <option value="" disabled selected>{{ trans('global.pleaseSelect') }}</option>
+                    @foreach($forest_divisions as $division)
+                        <option value="{{ $division->id }}">{{ $division->name_bn }}</option>
+                    @endforeach
+                </select>
+
+            </div>
+        </div>
+
+
+
+        <!-- Search Button -->
+        <div class="col-md-8">
+            <button type="submit" class="btn btn-success">
+                <i class="fa fa-search" aria-hidden="true"></i>
+                {{ trans('global.search') }}
+            </button>
+        </div>
+
+    </form>
+</div>
+
+
     </div>
+
+	<br>
+		<br>
+
 
 
 
@@ -35,7 +152,11 @@
 
 <div class="card mb-1 p-2">
 
+
+
             <div class="row justify-content-center align-items-center g-3">
+
+
                 <div class="col">
                     <div class="d-flex align-items-center">
                         <div class="customer-pic p-2">
@@ -72,35 +193,22 @@
 
 
 
-                @php
-                    $lastJobHistory = $result->jobhistories->last();
-                    //dd($lastJobHistory);
-
-                    if ($lastJobHistory) {
-                        $designation = $lastJobHistory->designation;
-                        if (app()->getLocale() === 'bn') {
-                            @$designationName = $designation->name_bn;
-                        } else {
-                            @$designationName = $designation->name_en;
-                        }
-                    } else {
-                        $designationName = 'N/A';
-                    }
-                @endphp
-
-
 
                 <div class="col">
-                    @if ($designationName)
+
                         <span class="badge bg-warning"style="
                         background-color: #5d1f1f17 !important;
                         color: #5d1f1f !important;
                         padding: 6px !IMPORTANT;
                         border-radius: 25px;
-                    "> {{ $designationName }}</span>
-                    @endif
+                    "> @if(app()->getLocale() === 'bn')
+							   {{ $result->designation->name_bn ?? 'N/A' }}
+						   @else
+							   {{ $result->designation->name_en ?? 'N/A' }}
+						   @endif</span>
 
-                    
+
+
 
 
                 </div>
@@ -110,7 +218,7 @@
                     @if (app()->getLocale() === 'bn')
                         অবসরের তারিখ
                     @else
-                        Retirement Date: 
+                        Retirement Date:
                     @endif </b><br>
                     <p class="mb-0" >{{ englishToBanglaNumber($result['prl_date'] ?? 'N/A') }}</p>
 
@@ -141,4 +249,14 @@
         </div>
 
         @endforeach
+		<div class="pagination">
+        {{ $employeeList->links('pagination::bootstrap-4') }}
+    </div>
+    @php
+    session()->forget(['from_date', 'to_date','designation_id','division_id','circle_id']);
+@endphp
+
 @endsection
+
+
+

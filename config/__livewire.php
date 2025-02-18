@@ -53,9 +53,9 @@ return [
     | Examples: "/assets", "myurl.com/app".
     |
     */
-    'asset_url' =>  env('APP_URL', 'https://bfis.bforest.gov.bd/srms'),
+    'asset_url' =>  env('APP_URL', 'http://127.0.0.1:8001'),
 
-  
+
 
     /*
     |--------------------------------------------------------------------------
@@ -69,7 +69,7 @@ return [
     |
     */
 
-    'app_url' => env('APP_URL', 'https://bfis.bforest.gov.bd/srms'),
+    'app_url' => env('APP_URL', 'http://127.0.0.1:8001'),
 
     /*
     |--------------------------------------------------------------------------

@@ -53,13 +53,21 @@
                     <h2 style="color: #006625; margin:0">বন অধিদপ্তর-গণপ্রজাতন্ত্রী বাংলাদেশ সরকার</h2>
                     @if (app()->getLocale() === 'bn')
                     <h3 style=" margin:0"> সার্ভিস রেকর্ড ম্যানেজমেন্ট সিস্টেম<br>
-						ত্রৈমাসিক প্রতিবেদন 
+						ত্রৈমাসিক প্রতিবেদন
 					</h3>
+                    <p>
+                    বন অঞ্চলঃ {{$desig['name_bn']}}
+                    </p>
+
                         
                     @else
                     <h3 style=" margin:0"> Service Record Management System <br>
 						Three Months Report
+                        
 					</h3>
+                    <p>
+                    Forest Circle: {{$desig['name_en']}}
+                    </p>
                         
                     
                     @endif
@@ -77,8 +85,10 @@
 					<th rowspan="2">@if (app()->getLocale() === 'bn') ক্রমিক নং @else SN @endif</th>
 					<th rowspan="2">@if (app()->getLocale() === 'bn') কর্মকর্তা/কর্মচারীর নাম @else Employee Name @endif</th>
                     <th rowspan="2">@if (app()->getLocale() === 'bn') লিঙ্গ @else Gender @endif</th>
+
 					<th rowspan="2">@if (app()->getLocale() === 'bn') পদবী @else Designation @endif</th>
 					<th rowspan="2">@if (app()->getLocale() === 'bn') গ্রেড @else Grade @endif</th>
+					
 					<th rowspan="2">@if (app()->getLocale() === 'bn') জন্ম তারিখ @else Date of Birth @endif</th>
 					<th rowspan="2">@if (app()->getLocale() === 'bn') নিজ জেলা @else Home District @endif</th>
 					<th rowspan="2">@if (app()->getLocale() === 'bn') স্থায়ী ঠিকানা @else Permanent Address @endif</th>
@@ -94,10 +104,8 @@
 					
 					<th colspan="3">@if (app()->getLocale() === 'bn') যে দপ্তর বা বিভাগে চাকরি করেছেন নাম ও চাকরি কাল @else Work Office History @endif</th>
 					<th rowspan="2">@if (app()->getLocale() === 'bn') মোট চাকরির সময়কাল@else Total Job Duration @endif</th>
-					<th rowspan="2">@if (app()->getLocale() === 'bn') কোন বিশেষ কোটায় নিয়োগ হলে কোটার নাম@else Quota @endif</th>
-					<th rowspan="2">@if (app()->getLocale() === 'bn') মুক্তিযোদ্ধা কোটায় নিয়োগপ্রাপ্ত হলে মুক্তিযোদ্ধার সাথে সম্পর্ক@else Relation with Freedom @endif</th>
-					<th rowspan="2">@if (app()->getLocale() === 'bn') মুক্তিযোদ্ধার নাম, ঠিকানা ও সনদ নম্বর ও গেজেট নম্বর@else Relation with Freedom @endif</th>
-					<th rowspan="2">@if (app()->getLocale() === 'bn') প্রশিক্ষণ সংক্রান্ত তথ্য (প্রশিক্ষণের নাম)@else Training Name @endif</th>
+                    <th rowspan="2">@if (app()->getLocale() === 'bn') কোন বিশেষ কোটায় নিয়োগ হলে কোটার নাম@else Quota @endif</th>
+
 					<th rowspan="2">@if (app()->getLocale() === 'bn') শিক্ষাগত যোগ্যতা@else  Educational Qualification @endif</th>
 					<th rowspan="2">@if (app()->getLocale() === 'bn') বিভাগীয় মামলা রুজু করা হয়ে থাকলে রুজুর অফিস আদেশ নং, নিষ্পত্তির আদেশ নং ও বিবরণ@else If any Departmental Procecution? Ruju Number, Closing Number & Description @endif</th>
 					<th rowspan="2">@if (app()->getLocale() === 'bn') অবসর গ্রহণের তারিখ @else PRL Date @endif</th>
@@ -164,6 +172,8 @@
                     @endif
                 @endif
             </td>
+            
+        
             <td rowspan="{{ $rowspan }}">
                 @if (app()->getLocale() === 'bn')
                     {{ englishToBanglaNumber($report['dob']) }}
@@ -310,7 +320,7 @@
                     {{ $report['total_job_en'] }}
                 @endif
             </td>
-            
+
             <td rowspan="{{ $rowspan }}">
                 @if (app()->getLocale() === 'bn')
                     {{ $report['quota_bn'] }}
@@ -318,28 +328,7 @@
                     {{ $report['quota_en'] }}
                 @endif
             </td>
-            
-            <td rowspan="{{ $rowspan }}">
-                @if (app()->getLocale() === 'bn')
-                    {{ $report['relation_bn'] }}
-                @else
-                    {{ $report['relation_en'] }}
-                @endif
-            </td>
-            
-            <td rowspan="{{ $rowspan }}">
-                {{ $report['fighter_name'] }} - {{ $report['fighter_address'] }} - {{ $report['fighter_address'] }}
-            </td>
-            
-            <td rowspan="{{ $rowspan }}">
-				@if ($report['training_histories'])
-					@foreach($report['training_histories'] as $training)
-						<span>{{ englishToBanglaNumber ($loop->iteration) }}. {{ $training['training_name'] }}</span> <br><br>
-					@endforeach
-				@else
-					-
-				@endif
-			</td>
+        
 			
 			<td rowspan="{{ $rowspan }}">
 				@if (app()->getLocale() === 'bn')

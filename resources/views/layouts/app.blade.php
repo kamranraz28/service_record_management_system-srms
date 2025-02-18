@@ -32,7 +32,7 @@
     <style>
         /* body {
             background: linear-gradient(to bottom, #dbe7c1, #a1c181);
-            
+
         }*/
 
         body {
