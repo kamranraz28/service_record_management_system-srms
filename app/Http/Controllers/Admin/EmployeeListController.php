@@ -3099,42 +3099,58 @@ class EmployeeListController extends Controller
     }
 
 
-public function search_retirement(Request $request)
-{
-    // Parse the start and end dates from the form (assuming dd/mm/yyyy format)
-    $start_date = Carbon::createFromFormat('d/m/Y', $request->input('start_date'))->format('Y-m-d');
-    $end_date = Carbon::createFromFormat('d/m/Y', $request->input('end_date'))->format('Y-m-d');
-    $designation_id = $request->input('designation_id');
-    $division_id = $request->input('division_id');
-    $circle_id = $request->input('circle_id');
+    public function search_retirement(Request $request)
+    {
+        // Parse the start and end dates from the form (assuming dd/mm/yyyy format)
+        $start_date = Carbon::createFromFormat('d/m/Y', $request->input('start_date'))->format('Y-m-d');
+        $end_date = Carbon::createFromFormat('d/m/Y', $request->input('end_date'))->format('Y-m-d');
+        $designation_id = $request->input('designation_id');
+        $division_id = $request->input('division_id');
+        $circle_id = $request->input('circle_id');
 
-    // Store the dates in the session
-    Session::put([
-        'start_date' => $start_date,
-        'end_date' => $end_date,
-        'designation_id' => $designation_id,
-        'circle_id' => $circle_id,
-        'division_id' => $division_id
-    ]);
+        // Store the dates in the session
+        Session::put([
+            'start_date' => $start_date,
+            'end_date' => $end_date,
+            'designation_id' => $designation_id,
+            'circle_id' => $circle_id,
+            'division_id' => $division_id
+        ]);
 
-    // Redirect to the upcoming retirement list
-    return redirect()->route('admin.upcoming_retirement_list');
-}
+        // Redirect to the upcoming retirement list
+        return redirect()->route('admin.upcoming_retirement_list');
+    }
 
-public function entry_list()
-{
-    $employeeQuery = EmployeeList::with(['approve_user.circle', 'approve_user.division'])
-    ->select('approveby', \DB::raw('COUNT(*) as count'))
-    ->where('approve', 'Approved')
-    ->groupBy('approveby')
-    ->get();
+    public function entry_list()
+    {
+        $employeeQuery = EmployeeList::with(['approve_user.circle', 'approve_user.division'])
+        ->select('approveby', \DB::raw('COUNT(*) as count'))
+        ->where('approve', 'Approved')
+        ->groupBy('approveby')
+        ->get();
 
-// Calculate the total count
-$totalCount = $employeeQuery->sum('count');
+        // Calculate the total count
+        $totalCount = $employeeQuery->sum('count');
 
-return view('admin.employeeLists.entryList', compact('employeeQuery', 'totalCount'));
+        return view('admin.employeeLists.entryList', compact('employeeQuery', 'totalCount'));
 
-}
+    }
+
+    public function employeedata_delete($id)
+    {
+        $employee = EmployeeList::find($id);
+
+        if ($employee) {
+            $employee->update([
+                'deleted_at' => now(),
+            ]);
+            return redirect()->back()->with('success', 'তথ্যটি সফলভাবে মুছে ফেলা হয়েছে।');
+        }
+
+        return redirect()->back()->with('error', 'অনুগ্রহপূর্বক আবার চেষ্টা করুন');
+    }
+
+
 
 
 

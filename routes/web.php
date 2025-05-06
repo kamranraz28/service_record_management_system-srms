@@ -24,6 +24,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'namespace' => 'Admin', 'mi
     Route::get('show-employee', [EmployeeListController::class,'commonemployeeshow'])->name('commonemployeeshow');
     Route::get('employee-data/{id}', [EmployeeListController::class,'employeedata'])->name('employeedata');
     Route::get('employee-pdf/{id}', [EmployeeListController::class,'employeedata_pdf'])->name('employeedata.pdf');
+    Route::get('employee-delete/{id}', [EmployeeListController::class,'employeedata_delete'])->name('employeedata.delete');
     Route::post('search-retirement', [EmployeeListController::class,'search_retirement'])->name('search_retirement');
 
     Route::post('search-employee', [EmployeeListController::class,'searchEmployee'])->name('searchEmployee');

@@ -165,7 +165,7 @@ class UpdateEmployeeListRequest extends FormRequest
                 'string',
                 'nullable',
             ],
-			
+
             'nid' => [
                 'numeric',
             ],
