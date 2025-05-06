@@ -101,12 +101,12 @@
                         <span class="help-block">{{ trans('cruds.leaveRecord.fields.end_date_helper') }}</span>
                     </div>
                 </div>
-				
+
 				<div class="form-group">
 					<label for="leave_orderumber">{{ trans('cruds.leaveRecord.fields.leave_orderumber') }}</label>
 					<input class="form-control {{ $errors->has('leave_orderumber') ? 'is-invalid' : '' }}"
-						   type="text" 
-						   name="leave_orderumber" 
+						   type="text"
+						   name="leave_orderumber"
 						   id="leave_orderumber"
 						   value="{{ old('leave_orderumber', $leaveRecord->leave_orderumber) }}"> <!-- Corrected closing parenthesis -->
 					@if ($errors->has('leave_orderumber'))
@@ -120,8 +120,8 @@
 				<div class="form-group">
 					<label for="leave_order_date">{{ trans('cruds.leaveRecord.fields.leave_order_date') }}</label>
 					<input class="form-control date {{ $errors->has('leave_order_date') ? 'is-invalid' : '' }}"
-						   type="text" 
-						   name="leave_order_date" 
+						   type="text"
+						   name="leave_order_date"
 						   id="leave_order_date"
 						   value="{{ old('leave_order_date', $leaveRecord->leave_order_date) }}"> <!-- Corrected value attribute -->
 					@if ($errors->has('leave_order_date'))
@@ -132,7 +132,20 @@
 					<span class="help-block">{{ trans('cruds.leaveRecord.fields.leave_order_date_helper') }}</span>
 				</div>
 
-			
+                <div class="form-group">
+                        <label for="leave_order">ছুটির আদেশ সংযোজন</label>
+                        <div class="needsclick dropzone {{ $errors->has('leave_order') ? 'is-invalid' : '' }}"
+                            id="leave_order-dropzone">
+                        </div>
+                        @if ($errors->has('leave_order'))
+                            <div class="invalid-feedback">
+                                {{ $errors->first('leave_order') }}
+                            </div>
+                        @endif
+                        <span class="help-block">{{ trans('cruds.award.fields.certificate_helper') }}</span>
+                    </div>
+
+
                 <div class="form-group">
                     <label for="reason">{{ trans('cruds.leaveRecord.fields.reason') }}</label>
                     <textarea class="form-control ckeditor {{ $errors->has('reason') ? 'is-invalid' : '' }}" name="reason" id="reason">{!! old('reason', $leaveRecord->reason) !!}</textarea>
@@ -233,5 +246,56 @@
                 );
             }
         });
+    </script>
+
+<script>
+        Dropzone.options.leaveOrderDropzone = {
+            url: '{{ route('admin.leave-records.storeMedia') }}',
+            maxFilesize: 2, // MB
+            maxFiles: 1,
+            addRemoveLinks: true,
+            headers: {
+                'X-CSRF-TOKEN': "{{ csrf_token() }}"
+            },
+            params: {
+                size: 2
+            },
+            success: function(file, response) {
+                $('form').find('input[name="leave_order"]').remove()
+                $('form').append('<input type="hidden" name="leave_order" value="' + response.name + '">')
+            },
+            removedfile: function(file) {
+                file.previewElement.remove()
+                if (file.status !== 'error') {
+                    $('form').find('input[name="leave_order"]').remove()
+                    this.options.maxFiles = this.options.maxFiles + 1
+                }
+            },
+            init: function() {
+                @if (isset($leaveRecord) && $leaveRecord->leave_order)
+                    var file = {!! json_encode($leaveRecord->leave_order) !!}
+                    this.options.addedfile.call(this, file)
+                    file.previewElement.classList.add('dz-complete')
+                    $('form').append('<input type="hidden" name="leave_order" value="' + file.file_name + '">')
+                    this.options.maxFiles = this.options.maxFiles - 1
+                @endif
+            },
+            error: function(file, response) {
+                if ($.type(response) === 'string') {
+                    var message = response //dropzone sends it's own error messages in string
+                } else {
+                    var message = response.errors.file
+                }
+                file.previewElement.classList.add('dz-error')
+                _ref = file.previewElement.querySelectorAll('[data-dz-errormessage]')
+                _results = []
+                for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+                    node = _ref[_i]
+                    _results.push(node.textContent = message)
+                }
+
+                return _results
+            }
+        }
     </script>
 @endsection

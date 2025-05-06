@@ -41,6 +41,15 @@ class LeaveRecord extends Model implements HasMedia
         'deleted_at',
     ];
 
+    protected $appends = [
+        'leave_order'
+    ];
+
+    public function getLeaveOrderAttribute()
+    {
+        return $this->getMedia('leave_order')->last();
+    }
+
     protected function serializeDate(DateTimeInterface $date)
     {
         return $date->format('Y-m-d H:i:s');

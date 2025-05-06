@@ -1431,6 +1431,20 @@
 
                                     <tr>
                                         <th>
+                                            ছুটির আদেশ সংযোজন
+                                        </th>
+                                        <td>
+                                        @if ($leaveRecord->leave_order)
+                                            <a href="{{ $leaveRecord->leave_order->getUrl() }}"
+                                                target="_blank">
+                                                {{ trans('global.view_file') }}
+                                            </a>
+                                        @endif
+                                        </td>
+                                    </tr>
+
+                                    <tr>
+                                        <th>
                                             {{ trans('cruds.leaveRecord.fields.reason') }}
                                         </th>
                                         <td>
@@ -2771,7 +2785,7 @@
                 অন্যান্য
                 @else
             Others
-                
+
                 @endif
                         </strong>
                         <br>
@@ -2813,7 +2827,7 @@
                                             {{englishToBanglaNumber($other->possible_date ?? '')}}
                                             @else
                                             {{$other->possible_date ?? ''}}
-                                            
+
                                             @endif
                                         </td>
                                     </tr>
@@ -2821,7 +2835,7 @@
                                     <tr>
                                         <td>
                                         @if (app()->getLocale() === 'bn')
-                                কর্মকর্তা/কর্মচারী সংযুক্তি হলে বর্তমান কর্মস্থল 
+                                কর্মকর্তা/কর্মচারী সংযুক্তি হলে বর্তমান কর্মস্থল
                                 @else
                                 Current workplace if officer/employee joins
                                 @endif
@@ -2831,7 +2845,7 @@
                                         </td>
                                     </tr>
 
-                                    
+
 
                                     <tr>
                                         <th> </th>

@@ -29,9 +29,9 @@ class LeaveRecordController extends Controller
     {
         abort_if(Gate::denies('leave_record_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
-		$userId = Auth::id(); 
+		$userId = Auth::id();
 		//dd($userId);
-		
+
 		$userInfo = User::select('forest_circle_id', 'forest_division_id')
 					->where('id', $userId)
 					->first();
@@ -40,13 +40,13 @@ class LeaveRecordController extends Controller
 		$circles= $userInfo->forest_circle_id;
 		//dd($circles);
         if ($request->ajax()) {
-			
+
 			if ($circles !== null && $divisions == null) {
-				
+
 				$sameOfficeIds = User::select('id')
 					->where('forest_circle_id', $circles)
 					->pluck('id');
-					
+
 				$query = LeaveRecord::with(['employee', 'type_of_leave', 'leave_category'])
 					->whereHas('employee', function ($query) use ($sameOfficeIds) {
 						$query->whereIn('created_by', $sameOfficeIds);
@@ -54,11 +54,11 @@ class LeaveRecordController extends Controller
 					->select(sprintf('%s.*', (new LeaveRecord)->table));
 
 			}elseif ($circles == null && $divisions !== null) {
-				
+
 				$sameOfficeIds = User::select('id')
 					->where('forest_division_id', $divisions)
 					->pluck('id');
-					
+
 				$query = LeaveRecord::with(['employee', 'type_of_leave', 'leave_category'])
 					->whereHas('employee', function ($query) use ($sameOfficeIds) {
 						$query->whereIn('created_by', $sameOfficeIds);
@@ -69,7 +69,7 @@ class LeaveRecordController extends Controller
 				$query = LeaveRecord::with(['employee', 'type_of_leave', 'leave_category'])
 				->select(sprintf('%s.*', (new LeaveRecord)->table));
 			}
-			
+
             $table = Datatables::of($query);
 
             $table->addColumn('placeholder', '&nbsp;');
@@ -154,6 +154,18 @@ class LeaveRecordController extends Controller
         if ($media = $request->input('ck-media', false)) {
             Media::whereIn('id', $media)->update(['model_id' => $leaveRecord->id]);
         }
+
+        if ($request->input('leave_order', false)) {
+            if (! $leaveRecord->leave_order || $request->input('leave_order') !== $leaveRecord->leave_order->file_name) {
+                if ($leaveRecord->leave_order) {
+                    $leaveRecord->leave_order->delete();
+                }
+                $leaveRecord->addMedia(storage_path('tmp/uploads/' . basename($request->input('leave_order'))))->toMediaCollection('leave_order');
+            }
+        } elseif ($leaveRecord->leave_order) {
+            $leaveRecord->leave_order->delete();
+        }
+
          return redirect()->back()->with('status', __('global.saveactions'));
        // return redirect()->route('admin.leave-records.index');
     }
@@ -176,6 +188,17 @@ class LeaveRecordController extends Controller
     public function update(UpdateLeaveRecordRequest $request, LeaveRecord $leaveRecord)
     {
         $leaveRecord->update($request->all());
+
+        if ($request->input('leave_order', false)) {
+            if (! $leaveRecord->leave_order || $request->input('leave_order') !== $leaveRecord->leave_order->file_name) {
+                if ($leaveRecord->leave_order) {
+                    $leaveRecord->leave_order->delete();
+                }
+                $leaveRecord->addMedia(storage_path('tmp/uploads/' . basename($request->input('leave_order'))))->toMediaCollection('leave_order');
+            }
+        } elseif ($leaveRecord->leave_order) {
+            $leaveRecord->leave_order->delete();
+        }
 
         return redirect()->back()->with('status', __('global.updateAction'));
     }
