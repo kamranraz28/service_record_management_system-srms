@@ -3,103 +3,120 @@
 @section('content')
 <style>
     body {
-        background: linear-gradient(145deg, #f3fdf6, #ffffff);
+        background: linear-gradient(to right, #f4fdf7, #ffffff);
         font-family: 'Segoe UI', sans-serif;
     }
 
     .custom-card {
-        background-color: #ffffff;
-        border: 1px solid rgba(8, 100, 36, 0.15);
-        border-radius: 1rem;
-        box-shadow: 0 10px 25px rgba(8, 100, 36, 0.08);
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 1.2rem;
+        box-shadow: 0 8px 20px rgba(8, 100, 36, 0.15);
         overflow: hidden;
+        backdrop-filter: blur(8px);
+        border: 1px solid rgba(8, 100, 36, 0.12);
     }
 
     .custom-header {
         background-color: #086424;
         color: #fff;
         padding: 1rem 1.5rem;
-        font-size: 1.25rem;
+        font-size: 1.35rem;
         font-weight: 600;
-        border-bottom: 1px solid #06521c;
+        display: flex;
+        align-items: center;
+    }
+
+    .custom-table {
+        margin: 0;
+        font-size: 0.95rem;
+    }
+
+    .custom-table thead {
+        background-color: #dff4e7;
+        color: #086424;
+        font-weight: 600;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        position: sticky;
+        top: 0;
+        z-index: 1;
     }
 
     .custom-table th, .custom-table td {
         padding: 0.85rem 1rem;
         vertical-align: middle;
-        border-color: rgba(8, 100, 36, 0.1);
-    }
-
-    .custom-table thead {
-        background-color: rgba(8, 100, 36, 0.06);
-        color: #086424;
-        font-weight: 600;
-        text-transform: uppercase;
-        font-size: 0.875rem;
+        border-bottom: 1px solid rgba(8, 100, 36, 0.08);
     }
 
     .custom-table tbody tr:hover {
-        background-color: rgba(8, 100, 36, 0.035);
+        background-color: rgba(8, 100, 36, 0.04);
+        transition: background-color 0.2s ease-in-out;
     }
 
     .btn-success {
         background-color: #086424;
         border-color: #086424;
         font-weight: 600;
+        padding: 0.6rem 1.5rem;
+        border-radius: 0.5rem;
+        transition: all 0.2s;
     }
 
     .btn-success:hover {
-        background-color: #0a7232;
-        border-color: #0a7232;
+        background-color: #0b7431;
+        border-color: #0b7431;
     }
 
     .badge-custom {
         background-color: #086424;
         color: #fff;
         font-size: 0.75rem;
-        padding: 0.35em 0.6em;
+        padding: 0.3em 0.6em;
         border-radius: 0.4rem;
-    }
-
-    .section-title {
-        color: #086424;
-        font-size: 2rem;
-        font-weight: bold;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
+        font-weight: 500;
     }
 
     .pagination .page-link {
         color: #086424;
+        border: none;
+        margin: 0 2px;
+        border-radius: 0.4rem;
     }
 
     .pagination .page-item.active .page-link {
         background-color: #086424;
-        border-color: #086424;
+        color: white;
     }
 
     input[type="checkbox"] {
-        width: 1.15rem;
-        height: 1.15rem;
+        width: 1.2rem;
+        height: 1.2rem;
         accent-color: #086424;
+        border-radius: 0.25rem;
+        cursor: pointer;
     }
 
     .table-responsive {
-        border-top: 1px solid rgba(8, 100, 36, 0.15);
+        border-top: 1px solid rgba(8, 100, 36, 0.12);
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+
+    .alert {
+        font-size: 1.1rem;
+        font-weight: 500;
     }
 </style>
 
 <div class="container py-4">
-
     @if($pendingChange->isEmpty())
         <div class="alert alert-warning shadow-sm rounded">
             <strong>কোনো পরিবর্তন নেই</strong>
         </div>
     @else
         <div class="custom-card">
-            <div class="custom-header d-flex justify-content-between">
-                <span>📋 পরিবর্তনসমূহের তালিকা</span>
+            <div class="custom-header">
+                📋 পরিবর্তনসমূহের তালিকা
             </div>
 
             <div class="card-body p-0">

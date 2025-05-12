@@ -3170,7 +3170,7 @@ class EmployeeListController extends Controller
 
         $pendingChange = Editlog::orderBy('id', 'desc')
             ->where('status', 0)
-            ->paginate(10);
+            ->paginate(20);
 
         return view('admin.employeeLists.pending-change', compact('pendingChange'));
     }
