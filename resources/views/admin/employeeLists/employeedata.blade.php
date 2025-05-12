@@ -2630,6 +2630,77 @@
                                         </td>
                                     </tr>
 
+                                    <tr>
+                                        <th>
+                                        @if (app()->getLocale() === 'bn')
+                                    প্রার্থী কর্তৃক পূরণীয় ফরম আপলোড
+                                @else
+                                    Applicant form upload
+
+                                @endif
+                                        </th>
+                                        <td>
+
+                                            @if ($policeverification->applicant_form)
+                                                <a href="{{ $policeverification->applicant_form->getUrl() }}" target="_blank">
+                                                    {{ trans('global.view_file') }}
+                                                </a>
+                                            @else
+                                                N/A
+                                            @endif
+
+
+
+                                        </td>
+                                    </tr>
+
+                                    <tr>
+                                        <th>
+                                        @if (app()->getLocale() === 'bn')
+                                    ভেরিফাইড তথ্যাদি আপলোড (যা পুলিশ প্রেরণ করেছে)
+                                @else
+                                    Verified Information Sent by Police
+
+                                @endif
+                                        </th>
+                                        <td>
+
+                                            @if ($policeverification->verified_form)
+                                                <a href="{{ $policeverification->verified_form->getUrl() }}" target="_blank">
+                                                    {{ trans('global.view_file') }}
+                                                </a>
+                                            @else
+                                                N/A
+                                            @endif
+
+
+
+                                        </td>
+                                    </tr>
+
+                                    <tr>
+                                        <th> </th>
+                                        <td>
+                                            <!-- Edit button -->
+                                            <a href="{{ route('admin.police-verification.edit', ['police_verification' => $policeverification->id]) }}"
+                                                class="btn btn-sm btn-primary">{{ trans('global.edit') }}</a>
+
+
+                                            <!-- Delete button -->
+                                            <form
+                                                action="{{ route('admin.police-verification.destroy', ['police_verification' => $policeverification->id]) }}"
+                                                method="POST" style="display: inline;">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-sm btn-danger"
+                                                    onclick="return confirm('{{ trans('global.areYouSure') }}');">
+                                                    {{ trans('global.delete') }}
+                                                </button>
+                                            </form>
+
+                                        </td>
+                                    </tr>
+
 
 
 

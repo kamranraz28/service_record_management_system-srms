@@ -9,6 +9,7 @@ use App\Http\Requests\MassDestroyJobHistoryRequest;
 use App\Http\Requests\StoreJobHistoryRequest;
 use App\Http\Requests\UpdateJobHistoryRequest;
 use App\Models\Designation;
+use App\Models\Editlog;
 use App\Models\EmployeeList;
 use App\Models\ForestBeat;
 use App\Models\ForestDivision;
@@ -35,48 +36,48 @@ class JobHistorieController extends Controller
     {
         abort_if(Gate::denies('job_history_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
-		$userId = Auth::id(); 
-		//dd($userId);
-		
-		$userInfo = User::select('forest_circle_id', 'forest_division_id')
-					->where('id', $userId)
-					->first();
-		$divisions= $userInfo->forest_division_id;
-		// dd($divisions);
-		$circles= $userInfo->forest_circle_id;
-		//dd($circles);
-		
+        $userId = Auth::id();
+        //dd($userId);
+
+        $userInfo = User::select('forest_circle_id', 'forest_division_id')
+            ->where('id', $userId)
+            ->first();
+        $divisions = $userInfo->forest_division_id;
+        // dd($divisions);
+        $circles = $userInfo->forest_circle_id;
+        //dd($circles);
+
         if ($request->ajax()) {
-			
-			if ($circles !== null && $divisions == null) {
-				
-				$sameOfficeIds = User::select('id')
-					->where('forest_circle_id', $circles)
-					->pluck('id');
-					
-				$query = JobHistory::with(['designation', 'employee', 'grade', 'circle_list', 'division_list', 'range_list', 'beat_list', 'office_unit'])
-					->whereHas('employee', function ($query) use ($sameOfficeIds) {
-						$query->whereIn('created_by', $sameOfficeIds);
-					})
-					->select(sprintf('%s.*', (new JobHistory)->table));
 
-			}elseif ($circles == null && $divisions !== null) {
-				
-				$sameOfficeIds = User::select('id')
-					->where('forest_division_id', $divisions)
-					->pluck('id');
-					
-				$query = JobHistory::with(['designation', 'employee', 'grade', 'circle_list', 'division_list', 'range_list', 'beat_list', 'office_unit'])
-					->whereHas('employee', function ($query) use ($sameOfficeIds) {
-						$query->whereIn('created_by', $sameOfficeIds);
-					})
-					->select(sprintf('%s.*', (new JobHistory)->table));
+            if ($circles !== null && $divisions == null) {
 
-			}else{
-				$query = JobHistory::with(['designation', 'employee', 'grade', 'circle_list', 'division_list', 'range_list', 'beat_list', 'office_unit'])
-				->select(sprintf('%s.*', (new JobHistory)->table));
-			}
-			
+                $sameOfficeIds = User::select('id')
+                    ->where('forest_circle_id', $circles)
+                    ->pluck('id');
+
+                $query = JobHistory::with(['designation', 'employee', 'grade', 'circle_list', 'division_list', 'range_list', 'beat_list', 'office_unit'])
+                    ->whereHas('employee', function ($query) use ($sameOfficeIds) {
+                        $query->whereIn('created_by', $sameOfficeIds);
+                    })
+                    ->select(sprintf('%s.*', (new JobHistory)->table));
+
+            } elseif ($circles == null && $divisions !== null) {
+
+                $sameOfficeIds = User::select('id')
+                    ->where('forest_division_id', $divisions)
+                    ->pluck('id');
+
+                $query = JobHistory::with(['designation', 'employee', 'grade', 'circle_list', 'division_list', 'range_list', 'beat_list', 'office_unit'])
+                    ->whereHas('employee', function ($query) use ($sameOfficeIds) {
+                        $query->whereIn('created_by', $sameOfficeIds);
+                    })
+                    ->select(sprintf('%s.*', (new JobHistory)->table));
+
+            } else {
+                $query = JobHistory::with(['designation', 'employee', 'grade', 'circle_list', 'division_list', 'range_list', 'beat_list', 'office_unit'])
+                    ->select(sprintf('%s.*', (new JobHistory)->table));
+            }
+
             $table = Datatables::of($query);
 
             $table->addColumn('placeholder', '&nbsp;');
@@ -88,13 +89,15 @@ class JobHistorieController extends Controller
                 $deleteGate = 'job_history_delete';
                 $crudRoutePart = 'job-histories';
 
-                return view('partials.datatablesActions', compact(
-                    'viewGate',
-                    'editGate',
-                    'deleteGate',
-                    'crudRoutePart',
-                    'row'
-                )
+                return view(
+                    'partials.datatablesActions',
+                    compact(
+                        'viewGate',
+                        'editGate',
+                        'deleteGate',
+                        'crudRoutePart',
+                        'row'
+                    )
                 );
             });
 
@@ -118,40 +121,40 @@ class JobHistorieController extends Controller
             $table->addColumn('grade_name_bn', function ($row) {
                 return $row->grade ? $row->grade->name_bn : 'N/A';
             });
-			$table->addColumn('office_unit', function ($row) {
+            $table->addColumn('office_unit', function ($row) {
                 return $row->office_unit ? $row->office_unit->name_bn : 'N/A';
             });
-			$table->editColumn('level_2', function ($row) {
+            $table->editColumn('level_2', function ($row) {
                 return $row->level_2 ? $row->level_2 : 'N/A';
             });
-			$table->editColumn('comment', function ($row) {
+            $table->editColumn('comment', function ($row) {
                 return $row->comment ? $row->comment : 'N/A';
             });
-			$table->editColumn('joining_date', function ($row) {
+            $table->editColumn('joining_date', function ($row) {
                 return $row->joining_date ? englishToBanglaNumber($row->joining_date) : 'N/A';
             });
-			$table->editColumn('release_date', function ($row) {
+            $table->editColumn('release_date', function ($row) {
                 return $row->release_date ? englishToBanglaNumber($row->release_date) : 'N/A';
             });
-			$table->addColumn('forest_circle', function ($row) {
+            $table->addColumn('forest_circle', function ($row) {
                 return $row->circle_list ? $row->circle_list->name_bn : 'N/A';
             });
-			
-			$table->addColumn('forest_division', function ($row) {
+
+            $table->addColumn('forest_division', function ($row) {
                 return $row->division_list ? $row->division_list->name_bn : 'N/A';
             });
-			$table->addColumn('forest_range', function ($row) {
+            $table->addColumn('forest_range', function ($row) {
                 return $row->range_list ? $row->range_list->name_bn : 'N/A';
             });
-			$table->addColumn('forest_beat', function ($row) {
+            $table->addColumn('forest_beat', function ($row) {
                 return $row->beat_list ? $row->beat_list->name_bn : 'N/A';
             });
-			$table->editColumn('institutename', function ($row) {
+            $table->editColumn('institutename', function ($row) {
                 return $row->institutename ? $row->institutename : 'N/A';
             });
 
-            
-             
+
+
             $table->rawColumns(['actions', 'placeholder', 'designation', 'employee', 'grade', 'circle_list', 'division_list']);
 
             return $table->make(true);
@@ -187,7 +190,7 @@ class JobHistorieController extends Controller
 
         $office_units = OfficeUnit::pluck($columname, 'id')->prepend(trans('global.pleaseSelect'), '');
 
-        return view('admin.jobHistories.create', compact('employee','beat_lists', 'circle_lists', 'designations', 'division_lists', 'employees', 'grades', 'office_units', 'range_lists'));
+        return view('admin.jobHistories.create', compact('employee', 'beat_lists', 'circle_lists', 'designations', 'division_lists', 'employees', 'grades', 'office_units', 'range_lists'));
     }
 
     public function store(StoreJobHistoryRequest $request)
@@ -236,22 +239,106 @@ class JobHistorieController extends Controller
         return view('admin.jobHistories.edit', compact('beat_lists', 'job_types', 'circle_lists', 'designations', 'division_lists', 'employees', 'grades', 'jobHistory', 'office_units', 'range_lists'));
     }
 
-    public function update(UpdateJobHistoryRequest $request, JobHistory $jobHistory)
-    {
-        $jobHistory->update($request->all());
+    // public function update(UpdateJobHistoryRequest $request, JobHistory $jobHistory)
+    // {
+    //     $jobHistory->update($request->all());
 
-        if ($request->input('go_upload', false)) {
-            if (!$jobHistory->go_upload || $request->input('go_upload') !== $jobHistory->go_upload->file_name) {
-                if ($jobHistory->go_upload) {
-                    $jobHistory->go_upload->delete();
-                }
-                $jobHistory->addMedia(storage_path('tmp/uploads/' . basename($request->input('go_upload'))))->toMediaCollection('go_upload');
+    //     if ($request->input('go_upload', false)) {
+    //         if (!$jobHistory->go_upload || $request->input('go_upload') !== $jobHistory->go_upload->file_name) {
+    //             if ($jobHistory->go_upload) {
+    //                 $jobHistory->go_upload->delete();
+    //             }
+    //             $jobHistory->addMedia(storage_path('tmp/uploads/' . basename($request->input('go_upload'))))->toMediaCollection('go_upload');
+    //         }
+    //     } elseif ($jobHistory->go_upload) {
+    //         $jobHistory->go_upload->delete();
+    //     }
+    //     return redirect()->back()->with('status', __('global.updateAction'));
+    // }
+
+    //With Upload
+
+    public function update(Request $request)
+    {
+
+        $fieldLabels = [
+            'office_unit_id' => 'অফিস',
+            'level_2' => 'অফিসের নাম (হেড অফিসে পোস্টিং হলে)',
+            'circle_list_id' => 'সার্কেল',
+            'division_list_id' => 'ডিভিশন',
+            'range_list_id' => 'রেঞ্জ/এসএফএনটিসি',
+            'beat_list_id' => 'বিট/এসএফপিসি',
+            'designation_id' => 'পদবি',
+            'joining_date' => 'যোগদানের তারিখ',
+            'release_date' => 'প্রস্থানের তারিখ',
+            'grade_id' => 'গ্রেড',
+            'go_upload' => 'পদায়ন পত্রের কপি',
+            'comment' => 'মন্তব্য',
+        ];
+        $jobHistory = JobHistory::findOrFail($request->id);
+
+        // Exclude 'go_upload' from fill since it's handled manually
+        $jobHistory->fill($request->except('go_upload'));
+
+        // Check for changed attributes
+        foreach ($jobHistory->getDirty() as $field => $newValue) {
+            $dropdownFields = ['office_unit_id', 'circle_list_id', 'division_list_id', 'range_list_id', 'beat_list_id', 'designation_id', 'grade_id'];
+            $type = in_array($field, $dropdownFields) ? 2 : 1;
+
+            // Log field change
+            Editlog::create([
+                'type' => $type,
+                'form' => 8,
+                'data_id' => $jobHistory->id,
+                'field' => $field,
+                'level' => $fieldLabels[$field] ?? ucfirst(str_replace('_', ' ', $field)),
+                'content' => $newValue,
+                'edit_by' => auth()->id(),
+                'employee_id' => $jobHistory->employee->id,
+            ]);
+        }
+
+        // Handle 'go_upload' file logic manually (not via isDirty())
+        if ($request->has('go_upload')) {
+            $filename = basename($request->input('go_upload'));
+            $tmpPath = storage_path('tmp/uploads/' . $filename);
+
+            if (file_exists($tmpPath)) {
+                // Store the new file without deleting old
+                $jobHistory
+                    ->addMedia($tmpPath)
+                    ->toMediaCollection('go_upload');
+
+                // Log upload
+                Editlog::create([
+                    'type' => 3,
+                    'form' => 8,
+                    'data_id' => $jobHistory->id,
+                    'field' => 'go_upload',
+                    'level' => $fieldLabels['go_upload'] ?? 'go_upload',
+                    'content' => $filename,
+                    'edit_by' => auth()->id(),
+                    'employee_id' => $jobHistory->employee->id,
+                ]);
             }
-        } elseif ($jobHistory->go_upload) {
-            $jobHistory->go_upload->delete();
+        } else {
+            // No file in request, assume clearing go_upload
+            $jobHistory->clearMediaCollection('go_upload');
+
+            Editlog::create([
+                'type' => 3,
+                'form' => 8,
+                'data_id' => $jobHistory->id,
+                'field' => 'go_upload',
+                'level' => $fieldLabels['go_upload'] ?? 'go_upload',
+                'content' => 'null',
+                'edit_by' => auth()->id(),
+                'employee_id' => $jobHistory->employee->id,
+            ]);
         }
         return redirect()->back()->with('status', __('global.updateAction'));
     }
+
 
     public function show(JobHistory $jobHistory)
     {

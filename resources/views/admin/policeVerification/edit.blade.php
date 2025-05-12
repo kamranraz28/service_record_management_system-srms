@@ -22,7 +22,7 @@
             @method('PUT')
             @csrf
             <div class="row row-cols-3">
-                <x-hidden-input name="employee_id" value="{{ $policeVerification->employee->id }}" />
+                <x-hidden-input name="id" value="{{ $policeVerification->id }}" />
 
                 <div class="form-group">
                     <label for="verification_type" class="required">
@@ -32,9 +32,9 @@
                             Police Verification Completed?
                         @endif
                     </label>
-                    <select class="form-control {{ $errors->has('verification_type') ? 'is-invalid' : '' }}" 
-                            name="verification_type" 
-                            id="verification_type" 
+                    <select class="form-control {{ $errors->has('verification_type') ? 'is-invalid' : '' }}"
+                            name="verification_type"
+                            id="verification_type"
                             required>
                         <option value="">{{trans('global.pleaseSelect')}}</option>
                         <option value="1" {{ $policeVerification->verification_type == '1' ? 'selected' : '' }}>হ্যাঁ</option>
@@ -70,7 +70,7 @@
                             ভেরিফাইড তথ্যাদি আপলোড (যা পুলিশ প্রেরণ করেছে)
                         @else
                             Verified Information Sent by Police
-                        
+
                         @endif
                     </label>
                     <div class="needsclick dropzone {{ $errors->has('verified_form') ? 'is-invalid' : '' }}"
@@ -153,7 +153,7 @@
 
 <script>
     Dropzone.options.verifiedFormDropzone = {
-        url: '{{ route('admin.police-verification.storeMedia') }}',
+        url: '{{ route('admin.spouse-informationes.storeMedia') }}',
         maxFilesize: 2, // MB
         maxFiles: 1,
         addRemoveLinks: true,

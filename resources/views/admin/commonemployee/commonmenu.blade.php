@@ -12,7 +12,7 @@
         $id = request()->input('id');
     @endphp
 
-    
+
 
 
     <div class="nav flex-column nav-pills" id="v-pills-tab" role="tablist" aria-orientation="vertical">
@@ -175,7 +175,7 @@
                 পুলিশ ভেরিফিকেশন
                 @else
                 Police Verification
-                
+
                 @endif
             </a>
         @endcan
@@ -187,7 +187,7 @@
                 টাইম স্কেল/উচ্চতর গ্রেড/বেতন সংরক্ষণ
                 @else
                 Time Scale/Higher Grade/Salary Reservation
-                
+
                 @endif
             </a>
         @endcan
@@ -199,10 +199,10 @@
                 অন্যান্য
                 @else
             Others
-                
+
                 @endif
             </a>
         @endcan
-        
+
     </div>
 </div>

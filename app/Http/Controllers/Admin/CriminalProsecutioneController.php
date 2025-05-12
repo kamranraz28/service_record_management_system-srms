@@ -9,6 +9,7 @@ use App\Http\Requests\StoreCriminalProsecutioneRequest;
 use App\Http\Requests\UpdateCriminalProsecutioneRequest;
 use App\Models\CriminalProsecutionDerail;
 use App\Models\CriminalProsecutione;
+use App\Models\Editlog;
 use App\Models\EmployeeList;
 use App\Models\MamlaType;
 use App\Models\MamlaSituation;
@@ -28,9 +29,9 @@ class CriminalProsecutioneController extends Controller
     {
         abort_if(Gate::denies('criminal_prosecutione_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
-		$userId = Auth::id(); 
+		$userId = Auth::id();
 		//dd($userId);
-		
+
 		$userInfo = User::select('forest_circle_id', 'forest_division_id')
 					->where('id', $userId)
 					->first();
@@ -39,13 +40,13 @@ class CriminalProsecutioneController extends Controller
 		$circles= $userInfo->forest_circle_id;
 		//dd($circles);
         if ($request->ajax()) {
-			
+
 			if ($circles !== null && $divisions == null) {
-				
+
 				$sameOfficeIds = User::select('id')
 					->where('forest_circle_id', $circles)
 					->pluck('id');
-					
+
 				$query = CriminalProsecutione::with(['employee'])
 					->whereHas('employee', function ($query) use ($sameOfficeIds) {
 						$query->whereIn('created_by', $sameOfficeIds);
@@ -53,11 +54,11 @@ class CriminalProsecutioneController extends Controller
 					->select(sprintf('%s.*', (new CriminalProsecutione)->table));
 
 			}elseif ($circles == null && $divisions !== null) {
-				
+
 				$sameOfficeIds = User::select('id')
 					->where('forest_division_id', $divisions)
 					->pluck('id');
-					
+
 				$query = CriminalProsecutione::with(['employee'])
 					->whereHas('employee', function ($query) use ($sameOfficeIds) {
 						$query->whereIn('created_by', $sameOfficeIds);
@@ -68,7 +69,7 @@ class CriminalProsecutioneController extends Controller
 				$query = CriminalProsecutione::with(['employee'])
 				->select(sprintf('%s.*', (new CriminalProsecutione)->table));
 			}
-			
+
             $table = Datatables::of($query);
 
             $table->addColumn('placeholder', '&nbsp;');
@@ -92,23 +93,23 @@ class CriminalProsecutioneController extends Controller
             $table->addColumn('employee_employeeid', function ($row) {
                 return $row->employee ? $row->employee->employeeid : '';
             });
-			
+
 			$table->editColumn('employee_fullname_bn', function ($row) {
                 return $row->employee ? $row->employee->fullname_bn : '';
             });
-			
+
 			$table->editColumn('mamla_id', function ($row) {
                 return $row->mamla ? $row->mamla->name_bn : '';
             });
-			
+
 			$table->editColumn('situation', function ($row) {
                 return $row->situation ? $row->situation : '';
             });
-			
+
 			$table->editColumn('mamla_start', function ($row) {
                 return $row->mamla_start ? $row->mamla_start : '';
             });
-			
+
 			$table->editColumn('mamla_end', function ($row) {
                 return $row->mamla_end ? $row->mamla_end : '';
             });
@@ -167,8 +168,8 @@ class CriminalProsecutioneController extends Controller
         } elseif ($criminalProsecutione->court_order) {
             $criminalProsecutione->court_order->delete();
         }
-		
-		
+
+
 		if ($request->input('court_order_new', false)) {
             if (! $criminalProsecutione->court_order_new || $request->input('court_order_new') !== $criminalProsecutione->court_order_new->file_name) {
                 if ($criminalProsecutione->court_order_new) {
@@ -179,7 +180,7 @@ class CriminalProsecutioneController extends Controller
         } elseif ($criminalProsecutione->court_order_new) {
             $criminalProsecutione->court_order_new->delete();
         }
-		
+
 		if ($request->input('appeal_order', false)) {
             if (! $criminalProsecutione->appeal_order || $request->input('appeal_order') !== $criminalProsecutione->appeal_order->file_name) {
                 if ($criminalProsecutione->appeal_order) {
@@ -195,11 +196,11 @@ class CriminalProsecutioneController extends Controller
      }
 
 
-    
-    
-    
 
-    
+
+
+
+
 
     public function edit(CriminalProsecutione $criminalProsecutione)
     {
@@ -215,41 +216,126 @@ class CriminalProsecutioneController extends Controller
         return view('admin.criminalProsecutiones.edit', compact('mamlasituations','mamlatypes','criminalProsecutione', 'employees'));
     }
 
-    public function update(UpdateCriminalProsecutioneRequest $request, CriminalProsecutione $criminalProsecutione)
-    {
-        $criminalProsecutione->update($request->all());
+    // public function update(UpdateCriminalProsecutioneRequest $request, CriminalProsecutione $criminalProsecutione)
+    // {
+    //     $criminalProsecutione->update($request->all());
 
-        if ($request->input('court_order', false)) {
-            if (! $criminalProsecutione->court_order || $request->input('court_order') !== $criminalProsecutione->court_order->file_name) {
-                if ($criminalProsecutione->court_order) {
-                    $criminalProsecutione->court_order->delete();
-                }
-                $criminalProsecutione->addMedia(storage_path('tmp/uploads/' . basename($request->input('court_order'))))->toMediaCollection('court_order');
-            }
-        } elseif ($criminalProsecutione->court_order) {
-            $criminalProsecutione->court_order->delete();
+    //     if ($request->input('court_order', false)) {
+    //         if (! $criminalProsecutione->court_order || $request->input('court_order') !== $criminalProsecutione->court_order->file_name) {
+    //             if ($criminalProsecutione->court_order) {
+    //                 $criminalProsecutione->court_order->delete();
+    //             }
+    //             $criminalProsecutione->addMedia(storage_path('tmp/uploads/' . basename($request->input('court_order'))))->toMediaCollection('court_order');
+    //         }
+    //     } elseif ($criminalProsecutione->court_order) {
+    //         $criminalProsecutione->court_order->delete();
+    //     }
+
+	// 	if ($request->input('court_order_new', false)) {
+    //         if (! $criminalProsecutione->court_order_new || $request->input('court_order_new') !== $criminalProsecutione->court_order_new->file_name) {
+    //             if ($criminalProsecutione->court_order_new) {
+    //                 $criminalProsecutione->court_order_new->delete();
+    //             }
+    //             $criminalProsecutione->addMedia(storage_path('tmp/uploads/' . basename($request->input('court_order_new'))))->toMediaCollection('court_order_new');
+    //         }
+    //     } elseif ($criminalProsecutione->court_order_new) {
+    //         $criminalProsecutione->court_order_new->delete();
+    //     }
+
+	// 	if ($request->input('appeal_order', false)) {
+    //         if (! $criminalProsecutione->appeal_order || $request->input('appeal_order') !== $criminalProsecutione->appeal_order->file_name) {
+    //             if ($criminalProsecutione->appeal_order) {
+    //                 $criminalProsecutione->appeal_order->delete();
+    //             }
+    //             $criminalProsecutione->addMedia(storage_path('tmp/uploads/' . basename($request->input('appeal_order'))))->toMediaCollection('appeal_order');
+    //         }
+    //     } elseif ($criminalProsecutione->appeal_order) {
+    //         $criminalProsecutione->appeal_order->delete();
+    //     }
+
+    //     return redirect()->back()->with('status', __('global.updateAction'));
+    // }
+
+    public function update(Request $request)
+    {
+        $fieldLabels = [
+            'mamla_id' => 'মামলার ধরণ',
+            'mamla_start' => 'মামলা রুজুর নম্বর ও তারিখ',
+            'court_order' => 'মামলা রুজুর আদেশ সংযোজন',
+            'situation_id' => 'মামলার বর্তমান অবস্থা',
+            'mamla_end' => 'মামলা নিস্পত্তির নম্বর ও তারিখ',
+            'court_order_new' => 'মামলার নিস্পত্তির আদেশ কপি',
+            'mamla_result' => 'মামলা নিস্পত্তির রায়',
+            'appeal_go' => 'আপিলের আদেশ/প্রজ্ঞাপন নম্বর ও তারিখ',
+            'appeal_order' => 'আপিলের আদেশ সংযোজন',
+            'appeal_result' => 'আপিলের আদেশ সংযোজন',
+            'remzrk' => 'মন্তব্য',
+        ];
+
+        $criminalProsecutione = CriminalProsecutione::findOrFail($request->id);
+
+        $fileFields = ['court_order', 'court_order_new', 'appeal_order'];
+        $criminalProsecutione->fill($request->except($fileFields));
+
+        foreach ($criminalProsecutione->getDirty() as $field => $newValue) {
+            $dropdownFields = ['mamla_id', 'situation_id'];
+            $type = in_array($field, $dropdownFields) ? 2 : 1;
+
+            Editlog::create([
+                'type' => $type,
+                'form' => 17,
+                'data_id' => $criminalProsecutione->id,
+                'field' => $field,
+                'level' => $fieldLabels[$field] ?? ucfirst(str_replace('_', ' ', $field)),
+                'content' => $newValue,
+                'edit_by' => auth()->id(),
+                'employee_id' => $criminalProsecutione->employee->id,
+            ]);
         }
-		
-		if ($request->input('court_order_new', false)) {
-            if (! $criminalProsecutione->court_order_new || $request->input('court_order_new') !== $criminalProsecutione->court_order_new->file_name) {
-                if ($criminalProsecutione->court_order_new) {
-                    $criminalProsecutione->court_order_new->delete();
+
+        foreach ($fileFields as $field) {
+            $newFilename = $request->input($field);
+
+            if ($newFilename) {
+                $newFilename = basename($newFilename);
+                $tmpPath = storage_path('tmp/uploads/' . $newFilename);
+
+                if (file_exists($tmpPath)) {
+                    $existingMedia = $criminalProsecutione->getFirstMedia($field);
+                    $existingFilename = $existingMedia ? $existingMedia->file_name : null;
+
+                    if ($newFilename !== $existingFilename) {
+                        // Upload and log only if the file name is different
+                        $criminalProsecutione->clearMediaCollection($field); // optional, if only 1 file per field
+                        $criminalProsecutione->addMedia($tmpPath)->toMediaCollection($field);
+
+                        Editlog::create([
+                            'type' => 3,
+                            'form' => 17,
+                            'data_id' => $criminalProsecutione->id,
+                            'field' => $field,
+                            'level' => $fieldLabels[$field] ?? ucfirst(str_replace('_', ' ', $field)),
+                            'content' => $newFilename,
+                            'edit_by' => auth()->id(),
+                            'employee_id' => $criminalProsecutione->employee->id,
+                        ]);
+                    }
                 }
-                $criminalProsecutione->addMedia(storage_path('tmp/uploads/' . basename($request->input('court_order_new'))))->toMediaCollection('court_order_new');
+            } elseif ($criminalProsecutione->getMedia($field)->isNotEmpty()) {
+                // If user intentionally cleared the file
+                $criminalProsecutione->clearMediaCollection($field);
+
+                Editlog::create([
+                    'type' => 3,
+                    'form' => 17,
+                    'data_id' => $criminalProsecutione->id,
+                    'field' => $field,
+                    'level' => $fieldLabels[$field] ?? ucfirst(str_replace('_', ' ', $field)),
+                    'content' => '',
+                    'edit_by' => auth()->id(),
+                    'employee_id' => $criminalProsecutione->employee->id,
+                ]);
             }
-        } elseif ($criminalProsecutione->court_order_new) {
-            $criminalProsecutione->court_order_new->delete();
-        }
-		
-		if ($request->input('appeal_order', false)) {
-            if (! $criminalProsecutione->appeal_order || $request->input('appeal_order') !== $criminalProsecutione->appeal_order->file_name) {
-                if ($criminalProsecutione->appeal_order) {
-                    $criminalProsecutione->appeal_order->delete();
-                }
-                $criminalProsecutione->addMedia(storage_path('tmp/uploads/' . basename($request->input('appeal_order'))))->toMediaCollection('appeal_order');
-            }
-        } elseif ($criminalProsecutione->appeal_order) {
-            $criminalProsecutione->appeal_order->delete();
         }
 
         return redirect()->back()->with('status', __('global.updateAction'));

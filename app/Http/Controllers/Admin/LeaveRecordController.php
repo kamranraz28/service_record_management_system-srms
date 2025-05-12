@@ -8,6 +8,7 @@ use App\Http\Controllers\Traits\MediaUploadingTrait;
 use App\Http\Requests\MassDestroyLeaveRecordRequest;
 use App\Http\Requests\StoreLeaveRecordRequest;
 use App\Http\Requests\UpdateLeaveRecordRequest;
+use App\Models\Editlog;
 use App\Models\EmployeeList;
 use App\Models\LeaveCategory;
 use App\Models\LeaveRecord;
@@ -185,21 +186,98 @@ class LeaveRecordController extends Controller
         return view('admin.leaveRecords.edit', compact('employees', 'leaveRecord', 'leave_categories', 'type_of_leaves'));
     }
 
-    public function update(UpdateLeaveRecordRequest $request, LeaveRecord $leaveRecord)
-    {
-        $leaveRecord->update($request->all());
+    // public function update(UpdateLeaveRecordRequest $request, LeaveRecord $leaveRecord)
+    // {
+    //     $leaveRecord->update($request->all());
 
-        if ($request->input('leave_order', false)) {
-            if (! $leaveRecord->leave_order || $request->input('leave_order') !== $leaveRecord->leave_order->file_name) {
-                if ($leaveRecord->leave_order) {
-                    $leaveRecord->leave_order->delete();
-                }
-                $leaveRecord->addMedia(storage_path('tmp/uploads/' . basename($request->input('leave_order'))))->toMediaCollection('leave_order');
-            }
-        } elseif ($leaveRecord->leave_order) {
-            $leaveRecord->leave_order->delete();
+    //     if ($request->input('leave_order', false)) {
+    //         if (! $leaveRecord->leave_order || $request->input('leave_order') !== $leaveRecord->leave_order->file_name) {
+    //             if ($leaveRecord->leave_order) {
+    //                 $leaveRecord->leave_order->delete();
+    //             }
+    //             $leaveRecord->addMedia(storage_path('tmp/uploads/' . basename($request->input('leave_order'))))->toMediaCollection('leave_order');
+    //         }
+    //     } elseif ($leaveRecord->leave_order) {
+    //         $leaveRecord->leave_order->delete();
+    //     }
+
+    //     return redirect()->back()->with('status', __('global.updateAction'));
+    // }
+
+    public function update(Request $request)
+    {
+
+        $fieldLabels = [
+            'leave_category_id' => 'ছুটির শ্রেণী',
+            'type_of_leave_id' => 'ছুটির ধরণ',
+            'start_date' => 'ছুটির শুরু তারিখ',
+            'end_date' => 'ছুটির শেষ তারিখ',
+            'leave_orderumber' => 'ছুটির আদেশ/প্রজ্ঞাপন/স্মারক নাম্বার',
+            'leave_order_date' => 'ছুটির আদেশ/প্রজ্ঞাপন/স্মারক তারিখ',
+            'leave_order' => 'ছুটির আদেশ/প্রজ্ঞাপন/স্মারক সংযোজন',
+            'reason' => 'কারন',
+        ];
+        $leaveRecord = LeaveRecord::findOrFail($request->id);
+
+        // Exclude 'leave_order' from fill since it's handled manually
+        $leaveRecord->fill($request->except('leave_order'));
+
+        // Check for changed attributes
+        foreach ($leaveRecord->getDirty() as $field => $newValue) {
+            $dropdownFields = ['leave_category_id','type_of_leave_id'];
+            $type = in_array($field, $dropdownFields) ? 2 : 1;
+
+            // Log field change
+            Editlog::create([
+                'type' => $type,
+                'form' => 10,
+                'data_id' => $leaveRecord->id,
+                'field' => $field,
+                'level' => $fieldLabels[$field] ?? ucfirst(str_replace('_', ' ', $field)),
+                'content' => $newValue,
+                'edit_by' => auth()->id(),
+                'employee_id' => $leaveRecord->employee->id,
+            ]);
         }
 
+        // Handle 'leave_order' file logic manually (not via isDirty())
+        if ($request->has('leave_order')) {
+            $filename = basename($request->input('leave_order'));
+            $tmpPath = storage_path('tmp/uploads/' . $filename);
+
+            if (file_exists($tmpPath)) {
+                // Store the new file without deleting old
+                $leaveRecord
+                    ->addMedia($tmpPath)
+                    ->toMediaCollection('leave_order');
+
+                // Log upload
+                Editlog::create([
+                    'type' => 3,
+                    'form' => 10,
+                    'data_id' => $leaveRecord->id,
+                    'field' => 'leave_order',
+                    'level' => $fieldLabels['leave_order'] ?? 'leave_order',
+                    'content' => $filename,
+                    'edit_by' => auth()->id(),
+                    'employee_id' => $leaveRecord->employee->id,
+                ]);
+            }
+        } else {
+            // No file in request, assume clearing leave_order
+            $leaveRecord->clearMediaCollection('leave_order');
+
+            Editlog::create([
+                'type' => 3,
+                'form' => 10,
+                'data_id' => $leaveRecord->id,
+                'field' => 'leave_order',
+                'level' => $fieldLabels['leave_order'] ?? 'leave_order',
+                'content' => '',
+                'edit_by' => auth()->id(),
+                'employee_id' => $leaveRecord->employee->id,
+            ]);
+        }
         return redirect()->back()->with('status', __('global.updateAction'));
     }
 

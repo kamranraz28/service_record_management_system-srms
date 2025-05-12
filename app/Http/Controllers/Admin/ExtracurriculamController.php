@@ -7,6 +7,7 @@ use App\Http\Controllers\Traits\MediaUploadingTrait;
 use App\Http\Requests\MassDestroyExtracurriculamRequest;
 use App\Http\Requests\StoreExtracurriculamRequest;
 use App\Http\Requests\UpdateExtracurriculamRequest;
+use App\Models\Editlog;
 use App\Models\EmployeeList;
 use App\Models\Extracurriculam;
 use Gate;
@@ -25,57 +26,57 @@ class ExtracurriculamController extends Controller
     {
         abort_if(Gate::denies('extracurriculam_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
-		$userId = Auth::id(); 
-		//dd($userId);
-		
-		$userInfo = User::select('forest_circle_id', 'forest_division_id')
-					->where('id', $userId)
-					->first();
-		$divisions= $userInfo->forest_division_id;
-		// dd($divisions);
-		$circles= $userInfo->forest_circle_id;
-		//dd($circles);
-		
-		
+        $userId = Auth::id();
+        //dd($userId);
+
+        $userInfo = User::select('forest_circle_id', 'forest_division_id')
+            ->where('id', $userId)
+            ->first();
+        $divisions = $userInfo->forest_division_id;
+        // dd($divisions);
+        $circles = $userInfo->forest_circle_id;
+        //dd($circles);
+
+
         if ($request->ajax()) {
-			
-			if ($circles !== null && $divisions == null) {
-				
-				$sameOfficeIds = User::select('id')
-					->where('forest_circle_id', $circles)
-					->pluck('id');
-					
-				$query = Extracurriculam::with(['employee'])
-					->whereHas('employee', function ($query) use ($sameOfficeIds) {
-						$query->whereIn('created_by', $sameOfficeIds);
-					})
-					->select(sprintf('%s.*', (new Extracurriculam)->table));
 
-			}elseif ($circles == null && $divisions !== null) {
-				
-				$sameOfficeIds = User::select('id')
-					->where('forest_division_id', $divisions)
-					->pluck('id');
-					
-				$query = Extracurriculam::with(['employee'])
-					->whereHas('employee', function ($query) use ($sameOfficeIds) {
-						$query->whereIn('created_by', $sameOfficeIds);
-					})
-					->select(sprintf('%s.*', (new Extracurriculam)->table));
+            if ($circles !== null && $divisions == null) {
 
-			}else{
-				$query = Extracurriculam::with(['employee'])
-				->select(sprintf('%s.*', (new Extracurriculam)->table));
-			}
+                $sameOfficeIds = User::select('id')
+                    ->where('forest_circle_id', $circles)
+                    ->pluck('id');
+
+                $query = Extracurriculam::with(['employee'])
+                    ->whereHas('employee', function ($query) use ($sameOfficeIds) {
+                        $query->whereIn('created_by', $sameOfficeIds);
+                    })
+                    ->select(sprintf('%s.*', (new Extracurriculam)->table));
+
+            } elseif ($circles == null && $divisions !== null) {
+
+                $sameOfficeIds = User::select('id')
+                    ->where('forest_division_id', $divisions)
+                    ->pluck('id');
+
+                $query = Extracurriculam::with(['employee'])
+                    ->whereHas('employee', function ($query) use ($sameOfficeIds) {
+                        $query->whereIn('created_by', $sameOfficeIds);
+                    })
+                    ->select(sprintf('%s.*', (new Extracurriculam)->table));
+
+            } else {
+                $query = Extracurriculam::with(['employee'])
+                    ->select(sprintf('%s.*', (new Extracurriculam)->table));
+            }
             $table = Datatables::of($query);
 
             $table->addColumn('placeholder', '&nbsp;');
             $table->addColumn('actions', '&nbsp;');
 
             $table->editColumn('actions', function ($row) {
-                $viewGate      = 'extracurriculam_show';
-                $editGate      = 'extracurriculam_edit';
-                $deleteGate    = 'extracurriculam_delete';
+                $viewGate = 'extracurriculam_show';
+                $editGate = 'extracurriculam_edit';
+                $deleteGate = 'extracurriculam_delete';
                 $crudRoutePart = 'extracurriculams';
 
                 return view('partials.datatablesActions', compact(
@@ -100,10 +101,10 @@ class ExtracurriculamController extends Controller
             $table->editColumn('activity_name', function ($row) {
                 return $row->activity_name ? $row->activity_name : '';
             });
-			$table->editColumn('start_date', function ($row) {
+            $table->editColumn('start_date', function ($row) {
                 return $row->start_date ? englishToBanglaNumber($row->start_date) : '';
             });
-			$table->editColumn('end_date', function ($row) {
+            $table->editColumn('end_date', function ($row) {
                 return $row->end_date ? englishToBanglaNumber($row->end_date) : '';
             });
             $table->editColumn('organization', function ($row) {
@@ -134,7 +135,7 @@ class ExtracurriculamController extends Controller
 
         $employees = EmployeeList::pluck('employeeid', 'id')->prepend(trans('global.pleaseSelect'), '');
 
-        return view('admin.extracurriculams.create', compact('employees','employee'));
+        return view('admin.extracurriculams.create', compact('employees', 'employee'));
     }
 
     public function store(StoreExtracurriculamRequest $request)
@@ -148,7 +149,7 @@ class ExtracurriculamController extends Controller
         if ($media = $request->input('ck-media', false)) {
             Media::whereIn('id', $media)->update(['model_id' => $extracurriculam->id]);
         }
-         return redirect()->back()->with('status', __('global.saveactions'));
+        return redirect()->back()->with('status', __('global.saveactions'));
         //return redirect()->route('admin.extracurriculams.index');
     }
 
@@ -163,23 +164,103 @@ class ExtracurriculamController extends Controller
         return view('admin.extracurriculams.edit', compact('employees', 'extracurriculam'));
     }
 
-    public function update(UpdateExtracurriculamRequest $request, Extracurriculam $extracurriculam)
-    {
-        $extracurriculam->update($request->all());
+    // public function update(UpdateExtracurriculamRequest $request, Extracurriculam $extracurriculam)
+    // {
+    //     $extracurriculam->update($request->all());
 
-        if ($request->input('attatchment', false)) {
-            if (! $extracurriculam->attatchment || $request->input('attatchment') !== $extracurriculam->attatchment->file_name) {
-                if ($extracurriculam->attatchment) {
-                    $extracurriculam->attatchment->delete();
-                }
-                $extracurriculam->addMedia(storage_path('tmp/uploads/' . basename($request->input('attatchment'))))->toMediaCollection('attatchment');
-            }
-        } elseif ($extracurriculam->attatchment) {
-            $extracurriculam->attatchment->delete();
+    //     if ($request->input('attatchment', false)) {
+    //         if (! $extracurriculam->attatchment || $request->input('attatchment') !== $extracurriculam->attatchment->file_name) {
+    //             if ($extracurriculam->attatchment) {
+    //                 $extracurriculam->attatchment->delete();
+    //             }
+    //             $extracurriculam->addMedia(storage_path('tmp/uploads/' . basename($request->input('attatchment'))))->toMediaCollection('attatchment');
+    //         }
+    //     } elseif ($extracurriculam->attatchment) {
+    //         $extracurriculam->attatchment->delete();
+    //     }
+
+    //     return redirect()->back()->with('status', __('global.updateAction'));
+    // }
+
+    //With Upload
+
+    public function update(Request $request)
+    {
+        //dd($request->all());
+
+        $fieldLabels = [
+            'activity_name' => 'কার্যক্রমের নাম',
+            'organization' => 'সংগঠনের নাম',
+            'position' => 'পদবি',
+            'start_date' => 'তারিখ হতে',
+            'end_date' => 'তারিখ পর্যন্ত',
+            'attatchment' => 'সনদ সংযোজন',
+            'description' => 'বর্ণনা',
+        ];
+        $extracurriculam = Extracurriculam::findOrFail($request->id);
+
+        // Exclude 'attatchment' from fill since it's handled manually
+        $extracurriculam->fill($request->except('attatchment'));
+
+        // Check for changed attributes
+        foreach ($extracurriculam->getDirty() as $field => $newValue) {
+            $dropdownFields = [];
+            $type = in_array($field, $dropdownFields) ? 2 : 1;
+
+            // Log field change
+            Editlog::create([
+                'type' => $type,
+                'form' => 13,
+                'data_id' => $extracurriculam->id,
+                'field' => $field,
+                'level' => $fieldLabels[$field] ?? ucfirst(str_replace('_', ' ', $field)),
+                'content' => $newValue,
+                'edit_by' => auth()->id(),
+                'employee_id' => $extracurriculam->employee->id,
+            ]);
         }
 
+        // Handle 'attatchment' file logic manually (not via isDirty())
+        if ($request->has('attatchment')) {
+            $filename = basename($request->input('attatchment'));
+            $tmpPath = storage_path('tmp/uploads/' . $filename);
+
+            if (file_exists($tmpPath)) {
+                // Store the new file without deleting old
+                $extracurriculam
+                    ->addMedia($tmpPath)
+                    ->toMediaCollection('attatchment');
+
+                // Log upload
+                Editlog::create([
+                    'type' => 3,
+                    'form' => 13,
+                    'data_id' => $extracurriculam->id,
+                    'field' => 'attatchment',
+                    'level' => $fieldLabels['attatchment'] ?? 'attatchment',
+                    'content' => $filename,
+                    'edit_by' => auth()->id(),
+                    'employee_id' => $extracurriculam->employee->id,
+                ]);
+            }
+        } else {
+            // No file in request, assume clearing attatchment
+            $extracurriculam->clearMediaCollection('attatchment');
+
+            Editlog::create([
+                'type' => 3,
+                'form' => 13,
+                'data_id' => $extracurriculam->id,
+                'field' => 'attatchment',
+                'level' => $fieldLabels['attatchment'] ?? 'attatchment',
+                'content' => 'null',
+                'edit_by' => auth()->id(),
+                'employee_id' => $extracurriculam->employee->id,
+            ]);
+        }
         return redirect()->back()->with('status', __('global.updateAction'));
     }
+
 
     public function show(Extracurriculam $extracurriculam)
     {
@@ -214,10 +295,10 @@ class ExtracurriculamController extends Controller
     {
         abort_if(Gate::denies('extracurriculam_create') && Gate::denies('extracurriculam_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
-        $model         = new Extracurriculam();
-        $model->id     = $request->input('crud_id', 0);
+        $model = new Extracurriculam();
+        $model->id = $request->input('crud_id', 0);
         $model->exists = true;
-        $media         = $model->addMediaFromRequest('upload')->toMediaCollection('ck-media');
+        $media = $model->addMediaFromRequest('upload')->toMediaCollection('ck-media');
 
         return response()->json(['id' => $media->id, 'url' => $media->getUrl()], Response::HTTP_CREATED);
     }

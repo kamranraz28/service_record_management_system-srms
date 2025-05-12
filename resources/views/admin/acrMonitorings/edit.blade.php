@@ -24,30 +24,12 @@
                 @method('PUT')
                 @csrf
                 <div class="row row-cols-3">
-                    <x-hidden-input name="employee_id" value="{{ $acrMonitoring->employee->id }}" />
+                    <x-hidden-input name="id" value="{{ $acrMonitoring->id }}" />
 
-                    {{-- <div class="form-group">
-                    <label class="required" for="employee_id">{{ trans('cruds.acrMonitoring.fields.employee') }}</label>
-                    <select class="form-select select2 {{ $errors->has('employee') ? 'is-invalid' : '' }}" name="employee_id"
-                        id="employee_id" required>
-                        @foreach ($employees as $id => $entry)
-                            <option value="{{ $id }}"
-                                {{ (old('employee_id') ? old('employee_id') : $acrMonitoring->employee->id ?? '') == $id ? 'selected' : '' }}>
-                                {{ $entry }}</option>
-                        @endforeach
-                    </select>
-                    @if ($errors->has('employee'))
-                        <div class="invalid-feedback">
-                            {{ $errors->first('employee') }}
-                        </div>
-                    @endif
-                    <span class="help-block">{{ trans('cruds.acrMonitoring.fields.employee_helper') }}</span>
-                </div> --}}
                     <div class="form-group">
                         <label class="required" for="year">{{ trans('cruds.acrMonitoring.fields.year') }}</label>
-                        <input class="form-control {{ $errors->has('year') ? 'is-invalid' : '' }}" type="number"
-                            name="year" id="year" value="{{ old('year', $acrMonitoring->year) }}" step="1"
-                            required>
+                        <input class="form-control {{ $errors->has('year') ? 'is-invalid' : '' }}" type="number" name="year"
+                            id="year" value="{{ old('year', $acrMonitoring->year) }}" step="1" required>
                         @if ($errors->has('year'))
                             <div class="invalid-feedback">
                                 {{ $errors->first('year') }}
@@ -55,47 +37,66 @@
                         @endif
                         <span class="help-block">{{ trans('cruds.acrMonitoring.fields.year_helper') }}</span>
                     </div>
-                    {{-- <div class="form-group">
-                        <label for="reviewer">{{ trans('cruds.acrMonitoring.fields.reviewer') }}</label>
-                        <input class="form-control {{ $errors->has('reviewer') ? 'is-invalid' : '' }}" type="text"
-                            name="reviewer" id="reviewer" value="{{ old('reviewer', $acrMonitoring->reviewer) }}">
-                        @if ($errors->has('reviewer'))
-                            <div class="invalid-feedback">
-                                {{ $errors->first('reviewer') }}
-                            </div>
-                        @endif
-                        <span class="help-block">{{ trans('cruds.acrMonitoring.fields.reviewer_helper') }}</span>
-                    </div>
-                    <div class="form-group">
-                        <label for="review_date">{{ trans('cruds.acrMonitoring.fields.review_date') }}</label>
-                        <input class="form-control date {{ $errors->has('review_date') ? 'is-invalid' : '' }}"
-                            type="text" name="review_date" id="review_date"
-                            value="{{ old('review_date', $acrMonitoring->review_date) }}">
-                        @if ($errors->has('review_date'))
-                            <div class="invalid-feedback">
-                                {{ $errors->first('review_date') }}
-                            </div>
-                        @endif
-                        <span class="help-block">{{ trans('cruds.acrMonitoring.fields.review_date_helper') }}</span>
-                    </div> --}}
 
-                </div>
-                <div class="form-group">
-                    <label for="remarks">{{ trans('cruds.acrMonitoring.fields.remarks') }}</label>
-                    <textarea class="form-control ckeditor {{ $errors->has('remarks') ? 'is-invalid' : '' }}" name="remarks"
-                        id="remarks">{!! old('remarks', $acrMonitoring->remarks) !!}</textarea>
-                    @if ($errors->has('remarks'))
-                        <div class="invalid-feedback">
-                            {{ $errors->first('remarks') }}
-                        </div>
-                    @endif
-                    <span class="help-block">{{ trans('cruds.acrMonitoring.fields.remarks_helper') }}</span>
-                </div>
-                <div class="form-group">
-                    <button class="btn btn-danger" type="submit">
-                        {{ trans('global.save') }}
-                    </button>
-                </div>
+                    <div class="form-group">
+                        <label for="remarks">
+                            @if (app()->getLocale() === 'bn')
+                                মন্তব্য
+                            @else
+                                Remarks
+                            @endif
+                        </label>
+                        <input class="form-control {{ $errors->has('remarks') ? 'is-invalid' : '' }}" type="text"
+                            name="remarks" id="remarks" value="{{ old('remarks', $acrMonitoring->remarks) }}">
+
+                    </div>
+
+                    <div class="form-group">
+                        <label for="fromdate">
+                            @if (app()->getLocale() === 'bn')
+                                তারিখ হতে
+                            @else
+                                From Date
+                            @endif
+                        </label>
+                        <input class="form-control date {{ $errors->has('fromdate') ? 'is-invalid' : '' }}" type="text"
+                            name="fromdate" id="fromdate" value="{{ old('fromdate', $acrMonitoring->fromdate) }}" >
+
+                    </div>
+
+                    <div class="form-group">
+                        <label for="todate">
+                            @if (app()->getLocale() === 'bn')
+                                তারিখ পর্যন্ত
+                            @else
+                                To Date
+                            @endif
+                        </label>
+                        <input class="form-control date {{ $errors->has('todate') ? 'is-invalid' : '' }}" type="text"
+                            name="todate" id="todate" value="{{ old('todate', $acrMonitoring->todate) }}" >
+
+                    </div>
+
+                    <div class="form-group">
+                        <label for="issubmitted" class="required">জমা দেওয়া হয়েছে?</label>
+                        <select class="form-control {{ $errors->has('issubmitted') ? 'is-invalid' : '' }}"
+                            name="issubmitted" id="issubmitted" required>
+                            <option value="">{{trans('global.pleaseSelect')}}</option>
+                        <option value="1" {{ $acrMonitoring->issubmitted == '1' ? 'selected' : '' }}>হ্যাঁ</option>
+                        <option value="2" {{ $acrMonitoring->issubmitted == '2' ? 'selected' : '' }}>না</option>
+                        </select>
+                        @if ($errors->has('issubmitted'))
+                            <div class="invalid-feedback">
+                                {{ $errors->first('issubmitted') }}
+                            </div>
+                        @endif
+                    </div>
+
+                    <div class="form-group">
+                        <button class="btn btn-danger" type="submit">
+                            {{ trans('global.save') }}
+                        </button>
+                    </div>
             </form>
         </div>
     </div>
@@ -103,14 +104,14 @@
 
 @section('scripts')
     <script>
-        $(document).ready(function() {
+        $(document).ready(function () {
             function SimpleUploadAdapter(editor) {
-                editor.plugins.get('FileRepository').createUploadAdapter = function(loader) {
+                editor.plugins.get('FileRepository').createUploadAdapter = function (loader) {
                     return {
-                        upload: function() {
+                        upload: function () {
                             return loader.file
-                                .then(function(file) {
-                                    return new Promise(function(resolve, reject) {
+                                .then(function (file) {
+                                    return new Promise(function (resolve, reject) {
                                         // Init request
                                         var xhr = new XMLHttpRequest();
                                         xhr.open('POST',
@@ -122,14 +123,14 @@
 
                                         // Init listeners
                                         var genericErrorText =
-                                            `Couldn't upload file: ${ file.name }.`;
-                                        xhr.addEventListener('error', function() {
+                                            `Couldn't upload file: ${file.name}.`;
+                                        xhr.addEventListener('error', function () {
                                             reject(genericErrorText)
                                         });
-                                        xhr.addEventListener('abort', function() {
+                                        xhr.addEventListener('abort', function () {
                                             reject()
                                         });
-                                        xhr.addEventListener('load', function() {
+                                        xhr.addEventListener('load', function () {
                                             var response = xhr.response;
 
                                             if (!response || xhr.status !== 201) {
@@ -150,7 +151,7 @@
                                         });
 
                                         if (xhr.upload) {
-                                            xhr.upload.addEventListener('progress', function(
+                                            xhr.upload.addEventListener('progress', function (
                                                 e) {
                                                 if (e.lengthComputable) {
                                                     loader.uploadTotal = e.total;
@@ -176,8 +177,8 @@
             for (var i = 0; i < allEditors.length; ++i) {
                 ClassicEditor.create(
                     allEditors[i], {
-                        extraPlugins: [SimpleUploadAdapter]
-                    }
+                    extraPlugins: [SimpleUploadAdapter]
+                }
                 );
             }
         });

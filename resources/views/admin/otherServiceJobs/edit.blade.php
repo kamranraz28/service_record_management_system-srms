@@ -105,7 +105,7 @@
                     @endif
                     <span class="help-block">{{ trans('cruds.otherServiceJob.fields.employee_helper') }}</span>
                 </div> --}}
-                    <x-hidden-input name="employee_id" value="{{ $otherServiceJob->employee->id }}" />
+                    <x-hidden-input name="id" value="{{ $otherServiceJob->id }}" />
                 </div>
                 <div class="form-group">
                     <button class="btn btn-danger" type="submit">

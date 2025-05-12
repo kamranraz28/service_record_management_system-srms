@@ -22,7 +22,7 @@
             @method('PUT')
             @csrf
             <div class="row row-cols-3">
-                <x-hidden-input name="employee_id" value="{{ $timeScale->employee->id }}" />
+                <x-hidden-input name="id" value="{{ $timeScale->id }}" />
 
                 <div class="form-group">
                             <label for="type" class="required">
@@ -42,7 +42,6 @@
                                         টাইম স্কেল
                                     @else
                                         Time Scale
-
                                     @endif
                                 </option>
                                 <option value="2" {{ $timeScale->type == '2' ? 'selected' : '' }}>
@@ -78,7 +77,7 @@
                                 class="form-control date {{ $errors->has('receipt_date') ? 'is-invalid' : '' }}"
                                 type="text" name="receipt_date" id="receipt_date"
                                 value="{{$timeScale->receipt_date}}">
-            
+
                         </div>
 
                         <div class="form-group">
@@ -93,7 +92,7 @@
                                 class="form-control {{ $errors->has('receipt_date') ? 'is-invalid' : '' }}"
                                 type="text" name="order_date" id="order_date"
                                 value="{{$timeScale->order_date}}">
-            
+
                         </div>
 
                         <div class="form-group">

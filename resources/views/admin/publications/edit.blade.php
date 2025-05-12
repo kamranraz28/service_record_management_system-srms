@@ -106,7 +106,7 @@
                     @endif
                     <span class="help-block">{{ trans('cruds.publication.fields.employee_helper') }}</span>
                 </div> --}}
-                    <x-hidden-input name="employee_id" value="{{ $publication->employee->id }}" />
+                    <x-hidden-input name="id" value="{{ $publication->id }}" />
                 </div>
                 <div class="form-group">
                     <label for="description">{{ trans('cruds.publication.fields.description') }}</label>

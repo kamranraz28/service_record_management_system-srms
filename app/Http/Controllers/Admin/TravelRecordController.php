@@ -7,6 +7,7 @@ use App\Http\Requests\MassDestroyTravelRecordRequest;
 use App\Http\Requests\StoreTravelRecordRequest;
 use App\Http\Requests\UpdateTravelRecordRequest;
 use App\Models\Country;
+use App\Models\Editlog;
 use App\Models\EmployeeList;
 use App\Models\TravelPurpose;
 use App\Models\TravelRecord;
@@ -25,9 +26,9 @@ class TravelRecordController extends Controller
     {
         abort_if(Gate::denies('travel_record_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
-		$userId = Auth::id(); 
+		$userId = Auth::id();
 		//dd($userId);
-		
+
 		$userInfo = User::select('forest_circle_id', 'forest_division_id')
 					->where('id', $userId)
 					->first();
@@ -35,16 +36,16 @@ class TravelRecordController extends Controller
 		// dd($divisions);
 		$circles= $userInfo->forest_circle_id;
 		//dd($circles);
-		
-		
+
+
         if ($request->ajax()) {
-			
+
 			if ($circles !== null && $divisions == null) {
-				
+
 				$sameOfficeIds = User::select('id')
 					->where('forest_circle_id', $circles)
 					->pluck('id');
-					
+
 				$query = TravelRecord::with(['employee', 'title', 'country', 'purpose'])
 					->whereHas('employee', function ($query) use ($sameOfficeIds) {
 						$query->whereIn('created_by', $sameOfficeIds);
@@ -52,11 +53,11 @@ class TravelRecordController extends Controller
 					->select(sprintf('%s.*', (new TravelRecord)->table));
 
 			}elseif ($circles == null && $divisions !== null) {
-				
+
 				$sameOfficeIds = User::select('id')
 					->where('forest_division_id', $divisions)
 					->pluck('id');
-					
+
 				$query = TravelRecord::with(['employee', 'title', 'country', 'purpose'])
 					->whereHas('employee', function ($query) use ($sameOfficeIds) {
 						$query->whereIn('created_by', $sameOfficeIds);
@@ -90,7 +91,7 @@ class TravelRecordController extends Controller
             $table->addColumn('employee_employeeid', function ($row) {
                 return $row->employee ? englishToBanglaNumber($row->employee->employeeid) : '';
             });
-			
+
 			$table->addColumn('name_bn', function ($row) {
                 return $row->employee ? $row->employee->fullname_bn : '';
             });
@@ -144,10 +145,10 @@ class TravelRecordController extends Controller
 
     public function store(StoreTravelRecordRequest $request)
     {
-		
+
 		//dd(1);
 
-        $data = $request->all(); 
+        $data = $request->all();
         if ($data['title_id'] == 'Other') {
             $travelTitle = new TravelTitle();
             $travelTitle->name_bn = $data['name_bn'];
@@ -179,10 +180,41 @@ class TravelRecordController extends Controller
         return view('admin.travelRecords.edit', compact('countries', 'employees', 'purposes', 'titles', 'travelRecord'));
     }
 
-    public function update(UpdateTravelRecordRequest $request, TravelRecord $travelRecord)
-    {
-        $travelRecord->update($request->all());
+    // public function update(UpdateTravelRecordRequest $request, TravelRecord $travelRecord)
+    // {
+    //     $travelRecord->update($request->all());
 
+    //     return redirect()->back()->with('status', __('global.updateAction'));
+    // }
+
+    public function update(Request $request)
+    {
+        //dd($request->all());
+        $travelRecord = TravelRecord::find($request->id);
+
+        // Fill new data from request
+        $travelRecord->fill($request->all());
+
+        $fieldLabels = [
+            'country_id' => 'দেশ',
+            'title_id' => 'উদ্দেশ্য',
+            'start_date' => 'শুরুর তারিখ',
+            'end_date' => 'শেষ তারিখ',
+        ];
+
+        if ($travelRecord->isDirty()) {
+            foreach ($travelRecord->getDirty() as $field => $newValue) {
+                Editlog::create([
+                    'form' => 12,
+                    'data_id' => $travelRecord->id,
+                    'field' => $field,
+                    'level' => $fieldLabels[$field] ?? ucfirst(str_replace('_', ' ', $field)),
+                    'content' => $newValue,
+                    'edit_by' => auth()->id(),
+                    'employee_id' => $travelRecord->employee->id,
+                ]);
+            }
+        }
         return redirect()->back()->with('status', __('global.updateAction'));
     }
 

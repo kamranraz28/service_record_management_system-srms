@@ -10,6 +10,7 @@
         <form method="POST" action="{{ route("admin.trainings.update", [$training->id]) }}" enctype="multipart/form-data">
             @method('PUT')
             @csrf
+            <input type="hidden" name="id" value="{{ $training->id }}">
             {{--<div class="form-group">
                 <label class="required" for="employee_id">{{ trans('cruds.training.fields.employee') }}</label>
                 <select class="form-control select2 {{ $errors->has('employee') ? 'is-invalid' : '' }}" name="employee_id" id="employee_id" required>

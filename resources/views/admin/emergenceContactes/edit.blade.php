@@ -75,7 +75,7 @@
                         <span
                             class="help-block">{{ trans('cruds.emergenceContacte.fields.contact_person_number_helper') }}</span>
                     </div>
-                    <x-hidden-input name="employee_id" value="{{ $emergenceContacte->employee->id }}" />
+                    <x-hidden-input name="id" value="{{ $emergenceContacte->id }}" />
                     {{-- <div class="form-group">
                     <label for="employee_id">{{ trans('cruds.emergenceContacte.fields.employee') }}</label>
                     <select class="form-select select2 {{ $errors->has('employee') ? 'is-invalid' : '' }}"

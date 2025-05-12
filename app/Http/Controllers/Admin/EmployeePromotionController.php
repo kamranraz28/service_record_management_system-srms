@@ -9,6 +9,7 @@ use App\Http\Requests\MassDestroyEmployeePromotionRequest;
 use App\Http\Requests\StoreEmployeePromotionRequest;
 use App\Http\Requests\UpdateEmployeePromotionRequest;
 use App\Models\Designation;
+use App\Models\Editlog;
 use App\Models\EmployeeList;
 use App\Models\EmployeePromotion;
 use App\Models\Grade;
@@ -28,10 +29,10 @@ class EmployeePromotionController extends Controller
     public function index(Request $request)
     {
         abort_if(Gate::denies('employee_promotion_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
-		
-		$userId = Auth::id(); 
+
+		$userId = Auth::id();
 		//dd($userId);
-		
+
 		$userInfo = User::select('forest_circle_id', 'forest_division_id')
 					->where('id', $userId)
 					->first();
@@ -39,15 +40,15 @@ class EmployeePromotionController extends Controller
 		// dd($divisions);
 		$circles= $userInfo->forest_circle_id;
 		//dd($circles);
-		
+
         if ($request->ajax()) {
-			
+
 			if ($circles !== null && $divisions == null) {
-				
+
 				$sameOfficeIds = User::select('id')
 					->where('forest_circle_id', $circles)
 					->pluck('id');
-					
+
 				$query = EmployeePromotion::with(['employee', 'new_designation'])
 					->whereHas('employee', function ($query) use ($sameOfficeIds) {
 						$query->whereIn('created_by', $sameOfficeIds);
@@ -55,11 +56,11 @@ class EmployeePromotionController extends Controller
 					->select(sprintf('%s.*', (new EmployeePromotion)->table));
 
 			}elseif ($circles == null && $divisions !== null) {
-				
+
 				$sameOfficeIds = User::select('id')
 					->where('forest_division_id', $divisions)
 					->pluck('id');
-					
+
 				$query = EmployeePromotion::with(['employee', 'new_designation'])
 					->whereHas('employee', function ($query) use ($sameOfficeIds) {
 						$query->whereIn('created_by', $sameOfficeIds);
@@ -70,7 +71,7 @@ class EmployeePromotionController extends Controller
 				$query = EmployeePromotion::with(['employee', 'new_designation'])
 				->select(sprintf('%s.*', (new EmployeePromotion)->table));
 			}
-			
+
             $table = Datatables::of($query);
 
             $table->addColumn('placeholder', '&nbsp;');
@@ -103,15 +104,15 @@ class EmployeePromotionController extends Controller
             $table->addColumn('new_designation_name_bn', function ($row) {
                 return $row->new_designation ? $row->new_designation->name_bn : '';
             });
-			
+
 			$table->addColumn('grade_bn', function ($row) {
                 return $row->grade ? $row->grade->name_bn : '';
             });
-			
+
 			$table->editColumn('memo_date', function ($row) {
                 return $row->go_issue_date ? englishToBanglaNumber($row->go_issue_date) : '';
             });
-			
+
 			$table->editColumn('memo_number', function ($row) {
                 return $row->office_order_date ? $row->go_issue_date : '';
             });
@@ -137,7 +138,7 @@ class EmployeePromotionController extends Controller
 
         $locale = App::getLocale();
         $columname = $locale === 'bn' ? 'name_bn' : 'name_en';
-		
+
 		$grades = Grade::pluck($columname, 'id')->prepend(trans('global.pleaseSelect'), '');
 
 
@@ -181,23 +182,99 @@ class EmployeePromotionController extends Controller
         return view('admin.employeePromotions.edit', compact('grades','employeePromotion', 'employees', 'new_designations'));
     }
 
-    public function update(UpdateEmployeePromotionRequest $request, EmployeePromotion $employeePromotion)
-    {
-        $employeePromotion->update($request->all());
+    // public function update(UpdateEmployeePromotionRequest $request, EmployeePromotion $employeePromotion)
+    // {
+    //     $employeePromotion->update($request->all());
 
-        if ($request->input('office_order', false)) {
-            if (!$employeePromotion->office_order || $request->input('office_order') !== $employeePromotion->office_order->file_name) {
-                if ($employeePromotion->office_order) {
-                    $employeePromotion->office_order->delete();
-                }
-                $employeePromotion->addMedia(storage_path('tmp/uploads/' . basename($request->input('office_order'))))->toMediaCollection('office_order');
-            }
-        } elseif ($employeePromotion->office_order) {
-            $employeePromotion->office_order->delete();
+    //     if ($request->input('office_order', false)) {
+    //         if (!$employeePromotion->office_order || $request->input('office_order') !== $employeePromotion->office_order->file_name) {
+    //             if ($employeePromotion->office_order) {
+    //                 $employeePromotion->office_order->delete();
+    //             }
+    //             $employeePromotion->addMedia(storage_path('tmp/uploads/' . basename($request->input('office_order'))))->toMediaCollection('office_order');
+    //         }
+    //     } elseif ($employeePromotion->office_order) {
+    //         $employeePromotion->office_order->delete();
+    //     }
+
+    //     return redirect()->back()->with('status', __('global.updateAction'));
+    // }
+
+
+    public function update(Request $request)
+    {
+
+        $fieldLabels = [
+            'new_designation_id' => 'পদবি',
+            'grade_id' => 'গ্রেড',
+            'office_order_date' => 'অফিস আদেশ/প্রজ্ঞাপন/স্মারক তারিখ',
+            'go_issue_date' => 'অফিস আদেশ/প্রজ্ঞাপন/স্মারক নাম্বার',
+            'office_order' => 'অফিস আদেশ/প্রজ্ঞাপন/স্মারক সংযোজন',
+        ];
+        $employeePromotion = EmployeePromotion::findOrFail($request->id);
+
+        // Exclude 'office_order' from fill since it's handled manually
+        $employeePromotion->fill($request->except('office_order'));
+
+        // Check for changed attributes
+        foreach ($employeePromotion->getDirty() as $field => $newValue) {
+            $dropdownFields = ['new_designation_id','grade_id'];
+            $type = in_array($field, $dropdownFields) ? 2 : 1;
+
+            // Log field change
+            Editlog::create([
+                'type' => $type,
+                'form' => 9,
+                'data_id' => $employeePromotion->id,
+                'field' => $field,
+                'level' => $fieldLabels[$field] ?? ucfirst(str_replace('_', ' ', $field)),
+                'content' => $newValue,
+                'edit_by' => auth()->id(),
+                'employee_id' => $employeePromotion->employee->id,
+            ]);
         }
 
+        // Handle 'office_order' file logic manually (not via isDirty())
+        if ($request->has('office_order')) {
+            $filename = basename($request->input('office_order'));
+            $tmpPath = storage_path('tmp/uploads/' . $filename);
+
+            if (file_exists($tmpPath)) {
+                // Store the new file without deleting old
+                $employeePromotion
+                    ->addMedia($tmpPath)
+                    ->toMediaCollection('office_order');
+
+                // Log upload
+                Editlog::create([
+                    'type' => 3,
+                    'form' => 9,
+                    'data_id' => $employeePromotion->id,
+                    'field' => 'office_order',
+                    'level' => $fieldLabels['office_order'] ?? 'office_order',
+                    'content' => $filename,
+                    'edit_by' => auth()->id(),
+                    'employee_id' => $employeePromotion->employee->id,
+                ]);
+            }
+        } else {
+            // No file in request, assume clearing office_order
+            $employeePromotion->clearMediaCollection('office_order');
+
+            Editlog::create([
+                'type' => 3,
+                'form' => 9,
+                'data_id' => $employeePromotion->id,
+                'field' => 'office_order',
+                'level' => $fieldLabels['office_order'] ?? 'office_order',
+                'content' => '',
+                'edit_by' => auth()->id(),
+                'employee_id' => $employeePromotion->employee->id,
+            ]);
+        }
         return redirect()->back()->with('status', __('global.updateAction'));
     }
+
 
     public function show(EmployeePromotion $employeePromotion)
     {

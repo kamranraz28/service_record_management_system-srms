@@ -21,8 +21,9 @@
                 enctype="multipart/form-data">
                 @method('PUT')
                 @csrf
+                <x-hidden-input name="id" value="{{ $extracurriculam->id }}" />
                 <div class="row row-cols-3">
-                    <x-hidden-input name="employee_id" value="{{ $extracurriculam->employee->id }}" />
+
                     {{-- <div class="form-group">
                     <label for="employee_id">{{ trans('cruds.extracurriculam.fields.employee') }}</label>
                     <select class="form-select select2 {{ $errors->has('employee') ? 'is-invalid' : '' }}" name="employee_id"

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\MassDestroyEmergenceContacteRequest;
 use App\Http\Requests\StoreEmergenceContacteRequest;
 use App\Http\Requests\UpdateEmergenceContacteRequest;
+use App\Models\Editlog;
 use App\Models\EmergenceContacte;
 use App\Models\EmployeeList;
 use Gate;
@@ -21,9 +22,9 @@ class EmergenceContacteController extends Controller
     {
         abort_if(Gate::denies('emergence_contacte_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
-		$userId = Auth::id(); 
+		$userId = Auth::id();
 		//dd($userId);
-		
+
 		$userInfo = User::select('forest_circle_id', 'forest_division_id')
 					->where('id', $userId)
 					->first();
@@ -32,13 +33,13 @@ class EmergenceContacteController extends Controller
 		$circles= $userInfo->forest_circle_id;
 		//dd($circles);
         if ($request->ajax()) {
-			
+
 			if ($circles !== null && $divisions == null) {
-				
+
 				$sameOfficeIds = User::select('id')
 					->where('forest_circle_id', $circles)
 					->pluck('id');
-					
+
 				$query = EmergenceContacte::with(['employee'])
 					->whereHas('employee', function ($query) use ($sameOfficeIds) {
 						$query->whereIn('created_by', $sameOfficeIds);
@@ -46,11 +47,11 @@ class EmergenceContacteController extends Controller
 					->select(sprintf('%s.*', (new EmergenceContacte)->table));
 
 			}elseif ($circles == null && $divisions !== null) {
-				
+
 				$sameOfficeIds = User::select('id')
 					->where('forest_division_id', $divisions)
 					->pluck('id');
-					
+
 				$query = EmergenceContacte::with(['employee'])
 					->whereHas('employee', function ($query) use ($sameOfficeIds) {
 						$query->whereIn('created_by', $sameOfficeIds);
@@ -61,7 +62,7 @@ class EmergenceContacteController extends Controller
 				$query = EmergenceContacte::with(['employee'])
 				->select(sprintf('%s.*', (new EmergenceContacte)->table));
 			}
-			
+
             $table = Datatables::of($query);
 
             $table->addColumn('placeholder', '&nbsp;');
@@ -144,9 +145,34 @@ class EmergenceContacteController extends Controller
         return view('admin.emergenceContactes.edit', compact('emergenceContacte', 'employees'));
     }
 
-    public function update(UpdateEmergenceContacteRequest $request, EmergenceContacte $emergenceContacte)
+    public function update(Request $request)
     {
-        $emergenceContacte->update($request->all());
+        //dd($request->all());
+        $emergenceContacte = EmergenceContacte::find($request->id);
+
+        // Fill new data from request
+        $emergenceContacte->fill($request->all());
+
+        $fieldLabels = [
+            'contact_person_name' => 'যোগাযোগের নাম',
+            'contact_person_relation' => 'সম্পর্ক',
+            'contact_person_number' => 'যোগাযোগের নম্বর',
+            'address' => 'ঠিকানা',
+        ];
+
+        if ($emergenceContacte->isDirty()) {
+            foreach ($emergenceContacte->getDirty() as $field => $newValue) {
+                Editlog::create([
+                    'form' => 5,
+                    'data_id' => $emergenceContacte->id,
+                    'field' => $field,
+                    'level' => $fieldLabels[$field] ?? ucfirst(str_replace('_', ' ', $field)),
+                    'content' => $newValue,
+                    'edit_by' => auth()->id(),
+                    'employee_id' => $emergenceContacte->employee->id,
+                ]);
+            }
+        }
 
         return redirect()->back()->with('status', __('global.updateAction'));
     }

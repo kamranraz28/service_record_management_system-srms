@@ -22,7 +22,7 @@
                 @method('PUT')
                 @csrf
                 <div class="row row-cols-3">
-                    <x-hidden-input name="employee_id" value="{{ $professionale->employee->id }}" />
+                    <x-hidden-input name="id" value="{{ $professionale->id }}" />
                     {{-- <div class="form-group">
                     <label class="required" for="employee_id">{{ trans('cruds.professionale.fields.employee') }}</label>
                     <select class="form-select select2 {{ $errors->has('employee') ? 'is-invalid' : '' }}" name="employee_id"

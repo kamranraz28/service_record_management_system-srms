@@ -21,7 +21,7 @@
                 @method('PUT')
                 @csrf
                 <div class="row row-cols-3">
-                    <x-hidden-input name="employee_id" value="{{ $child->employee->id }}" />
+                    <x-hidden-input name="id" value="{{ $child->id }}" />
 
                     {{-- <div class="form-group">
                     <label for="employee_id">{{ trans('cruds.child.fields.employee') }}</label>

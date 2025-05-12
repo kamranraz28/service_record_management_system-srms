@@ -22,7 +22,7 @@
                 @method('PUT')
                 @csrf
                 <div class="row row-cols-3">
-                    <x-hidden-input name="employee_id" value="{{ $travelRecord->employee->id }}" />
+                    <x-hidden-input name="id" value="{{ $travelRecord->id }}" />
                     <div class="form-group">
                         <label for="country_id">{{ trans('cruds.travelRecord.fields.country') }}</label>
                         <select class="form-control select2 {{ $errors->has('country') ? 'is-invalid' : '' }}"
@@ -40,7 +40,7 @@
                         @endif
                         <span class="help-block">{{ trans('cruds.travelRecord.fields.country_helper') }}</span>
                     </div>
-					
+
 					<div class="form-group">
                         <label for="title_id">উদ্দেশ্য</label>
                         <select class="form-control select2 {{ $errors->has('title') ? 'is-invalid' : '' }}"
@@ -99,7 +99,7 @@
                         @endif
                         <span class="help-block">{{ trans('cruds.travelRecord.fields.end_date_helper') }}</span>
                     </div>
-                    
+
                 </div>
                 <div class="form-group">
                     <button class="btn btn-danger" type="submit">

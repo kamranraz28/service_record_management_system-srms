@@ -8,6 +8,7 @@ use App\Http\Requests\MassDestroyAcrMonitoringRequest;
 use App\Http\Requests\StoreAcrMonitoringRequest;
 use App\Http\Requests\UpdateAcrMonitoringRequest;
 use App\Models\AcrMonitoring;
+use App\Models\Editlog;
 use App\Models\EmployeeList;
 use Gate;
 use Illuminate\Http\Request;
@@ -25,9 +26,9 @@ class AcrMonitoringController extends Controller
     {
         abort_if(Gate::denies('acr_monitoring_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
-		$userId = Auth::id(); 
+		$userId = Auth::id();
 		//dd($userId);
-		
+
 		$userInfo = User::select('forest_circle_id', 'forest_division_id')
 					->where('id', $userId)
 					->first();
@@ -36,13 +37,13 @@ class AcrMonitoringController extends Controller
 		$circles= $userInfo->forest_circle_id;
 		//dd($circles);
         if ($request->ajax()) {
-			
+
 			if ($circles !== null && $divisions == null) {
-				
+
 				$sameOfficeIds = User::select('id')
 					->where('forest_circle_id', $circles)
 					->pluck('id');
-					
+
 				$query = AcrMonitoring::with(['employee'])
 					->whereHas('employee', function ($query) use ($sameOfficeIds) {
 						$query->whereIn('created_by', $sameOfficeIds);
@@ -50,11 +51,11 @@ class AcrMonitoringController extends Controller
 					->select(sprintf('%s.*', (new AcrMonitoring)->table));
 
 			}elseif ($circles == null && $divisions !== null) {
-				
+
 				$sameOfficeIds = User::select('id')
 					->where('forest_division_id', $divisions)
 					->pluck('id');
-					
+
 				$query = AcrMonitoring::with(['employee'])
 					->whereHas('employee', function ($query) use ($sameOfficeIds) {
 						$query->whereIn('created_by', $sameOfficeIds);
@@ -65,7 +66,7 @@ class AcrMonitoringController extends Controller
 				$query = AcrMonitoring::with(['employee'])
 				->select(sprintf('%s.*', (new AcrMonitoring)->table));
 			}
-			
+
             $table = Datatables::of($query);
 
             $table->addColumn('placeholder', '&nbsp;');
@@ -146,12 +147,65 @@ class AcrMonitoringController extends Controller
         return view('admin.acrMonitorings.edit', compact('acrMonitoring', 'employees'));
     }
 
-    public function update(UpdateAcrMonitoringRequest $request, AcrMonitoring $acrMonitoring)
+    // public function update(UpdateAcrMonitoringRequest $request, AcrMonitoring $acrMonitoring)
+    // {
+    //     $acrMonitoring->update($request->all());
+
+    //     return redirect()->back()->with('status', __('global.updateAction'));
+    // }
+
+    //Single Upload
+
+    public function update(Request $request)
     {
-        $acrMonitoring->update($request->all());
+
+        $fieldLabels = [
+            'year' => 'সাল',
+            'remarks' => 'মন্তব্য',
+            'fromdate' => 'তারিখ হতে',
+            'todate' => 'তারিখ পর্যন্ত',
+            'issubmitted' => 'জমা দেওয়া হয়েছে?',
+        ];
+        $acrMonitoring = AcrMonitoring::findOrFail($request->id);
+
+        $acrMonitoring->fill($request->all());
+
+        // Check for changed attributes
+        foreach ($acrMonitoring->getDirty() as $field => $newValue) {
+            $content = $newValue;
+
+            // If the changed field is 'type', map value to Bangla label
+        if ($field === 'type') {
+            switch ($newValue) {
+                case 1:
+                    $content = 'হ্যাঁ';
+                    break;
+                case 2:
+                    $content = 'না';
+                    break;
+                default:
+                    $content = $newValue;
+            }
+        }
+
+
+            // Log field change
+            Editlog::create([
+                'type' => 1,
+                'form' => 18,
+                'data_id' => $acrMonitoring->id,
+                'field' => $field,
+                'level' => $fieldLabels[$field] ?? ucfirst(str_replace('_', ' ', $field)),
+                'content' => $content,
+                'edit_by' => auth()->id(),
+                'employee_id' => $acrMonitoring->employee->id,
+            ]);
+        }
 
         return redirect()->back()->with('status', __('global.updateAction'));
     }
+
+
 
     public function show(AcrMonitoring $acrMonitoring)
     {

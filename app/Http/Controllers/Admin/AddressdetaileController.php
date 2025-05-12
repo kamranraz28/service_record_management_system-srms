@@ -8,6 +8,7 @@ use App\Http\Requests\MassDestroyAddressdetaileRequest;
 use App\Http\Requests\StoreAddressdetaileRequest;
 use App\Http\Requests\UpdateAddressdetaileRequest;
 use App\Models\Addressdetaile;
+use App\Models\Editlog;
 use App\Models\EmployeeList;
 use App\Models\Upazila;
 use Gate;
@@ -25,10 +26,10 @@ class AddressdetaileController extends Controller
     public function index(Request $request)
     {
         abort_if(Gate::denies('addressdetaile_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
-		
-		$userId = Auth::id(); 
+
+		$userId = Auth::id();
 		//dd($userId);
-		
+
 		$userInfo = User::select('forest_circle_id', 'forest_division_id')
 					->where('id', $userId)
 					->first();
@@ -36,15 +37,15 @@ class AddressdetaileController extends Controller
 		// dd($divisions);
 		$circles= $userInfo->forest_circle_id;
 		//dd($circles);
-		
+
         if ($request->ajax()) {
-			
+
 			if ($circles !== null && $divisions == null) {
-				
+
 				$sameOfficeIds = User::select('id')
 					->where('forest_circle_id', $circles)
 					->pluck('id');
-					
+
 				$query = Addressdetaile::with(['employee', 'thana_upazila'])
 					->whereHas('employee', function ($query) use ($sameOfficeIds) {
 						$query->whereIn('created_by', $sameOfficeIds);
@@ -52,11 +53,11 @@ class AddressdetaileController extends Controller
 					->select(sprintf('%s.*', (new Addressdetaile)->table));
 
 			}elseif ($circles == null && $divisions !== null) {
-				
+
 				$sameOfficeIds = User::select('id')
 					->where('forest_division_id', $divisions)
 					->pluck('id');
-					
+
 				$query = Addressdetaile::with(['employee', 'thana_upazila'])
 					->whereHas('employee', function ($query) use ($sameOfficeIds) {
 						$query->whereIn('created_by', $sameOfficeIds);
@@ -126,7 +127,7 @@ class AddressdetaileController extends Controller
     }
 
     public function create(Request $request)
-    { 
+    {
         $locale = App::getLocale();
 $columname = $locale === 'bn' ? 'name_bn' : 'name_en';
         abort_if(Gate::denies('addressdetaile_create'), Response::HTTP_FORBIDDEN, '403 Forbidden');
@@ -162,14 +163,53 @@ $columname = $locale === 'bn' ? 'name_bn' : 'name_en';
         return view('admin.addressdetailes.edit', compact('addressdetaile', 'employees', 'thana_upazilas'));
     }
 
-    public function update(UpdateAddressdetaileRequest $request, Addressdetaile $addressdetaile)
+    // public function update(UpdateAddressdetaileRequest $request, Addressdetaile $addressdetaile)
+    // {
+    //     $addressdetaile->update($request->all());
+
+
+	// 	return redirect()->back()->with('status', __('global.updateAction'));
+
+    // }
+
+    //With Upload
+
+    public function update(Request $request)
     {
-        $addressdetaile->update($request->all());
 
+        $fieldLabels = [
+            'flat_house' => 'ফ্ল্যাট/বাড়ি, রাস্তা, গ্রাম/শহর',
+            'post_office' => 'ডাকঘর',
+            'post_code' => 'পোস্ট কোড',
+            'thana_upazila_id' => 'থানা/উপজেলা',
+            'phone_number' => 'টেলিফোন/মোবাইল নম্বর',
+            'status' => 'সরকারী কোয়ার্টার',
+        ];
+        $addressdetaile = Addressdetaile::findOrFail($request->id);
 
-		return redirect()->back()->with('status', __('global.updateAction'));
+        // Exclude 'nid_upload' from fill since it's handled manually
+        $addressdetaile->fill($request->all());
 
+        // Check for changed attributes
+        foreach ($addressdetaile->getDirty() as $field => $newValue) {
+            $dropdownFields = ['thana_upazila_id'];
+            $type = in_array($field, $dropdownFields) ? 2 : 1;
+
+            // Log field change
+            Editlog::create([
+                'type' => $type,
+                'form' => 4,
+                'data_id' => $addressdetaile->id,
+                'field' => $field,
+                'level' => $fieldLabels[$field] ?? ucfirst(str_replace('_', ' ', $field)),
+                'content' => $newValue,
+                'edit_by' => auth()->id(),
+                'employee_id' => $addressdetaile->employee->id,
+            ]);
+        }
+        return redirect()->back()->with('status', __('global.updateAction'));
     }
+
 
     public function show(Addressdetaile $addressdetaile)
     {
@@ -216,9 +256,9 @@ $columname = $locale === 'bn' ? 'name_bn' : 'name_en';
     {
         //dd($request->all());
         if ($request->input('same') ==2) {
-        
+
             $employee = new Addressdetaile();
-    
+
             $employee->address_type = 'present';
             $employee->flat_house = $request->input('flat_house');
             $employee->post_office = $request->input('post_office');
@@ -227,16 +267,16 @@ $columname = $locale === 'bn' ? 'name_bn' : 'name_en';
             $employee->status = $request->input('status');
             $employee->employee_id = $request->input('employee_id');
             $employee->thana_upazila_id = $request->input('thana_upazila_id');
-            
+
             $employee->save();
 
             return redirect()->back()->with('success', 'Present Address Created Successfully.');
 
-    
+
         }elseif ($request->input('same') == 1) {
 
             $presentAddress = new Addressdetaile();
-        
+
             $presentAddress->address_type = 'present';
             $presentAddress->flat_house = $request->input('flat_house');
             $presentAddress->post_office = $request->input('post_office');
@@ -245,11 +285,11 @@ $columname = $locale === 'bn' ? 'name_bn' : 'name_en';
             $presentAddress->status = $request->input('status');
             $presentAddress->employee_id = $request->input('employee_id');
             $presentAddress->thana_upazila_id = $request->input('thana_upazila_id');
-            
+
             $presentAddress->save();
 
             $permanentAddress = new Addressdetaile();
-        
+
             $permanentAddress->address_type = 'permanent';
             $permanentAddress->flat_house = $request->input('flat_house');
             $permanentAddress->post_office = $request->input('post_office');
@@ -258,7 +298,7 @@ $columname = $locale === 'bn' ? 'name_bn' : 'name_en';
             $permanentAddress->status = $request->input('status');
             $permanentAddress->employee_id = $request->input('employee_id');
             $permanentAddress->thana_upazila_id = $request->input('thana_upazila_id');
-            
+
             $permanentAddress->save();
             return redirect()->back()->with('success', 'Present and Permanent Address Created Successfully.');
 
@@ -283,9 +323,9 @@ $columname = $locale === 'bn' ? 'name_bn' : 'name_en';
     public function permanentAddressStore(Request $request)
     {
         // dd($request->all());
-        
+
             $employee = new Addressdetaile();
-    
+
             $employee->address_type = 'permanent';
             $employee->flat_house = $request->input('flat_house');
             $employee->post_office = $request->input('post_office');
@@ -294,7 +334,7 @@ $columname = $locale === 'bn' ? 'name_bn' : 'name_en';
             $employee->status = $request->input('status');
             $employee->employee_id = $request->input('employee_id');
             $employee->thana_upazila_id = $request->input('thana_upazila_id');
-            
+
             $employee->save();
 
             return redirect()->back()->with('success', 'Permanent Address Created Successfully.');

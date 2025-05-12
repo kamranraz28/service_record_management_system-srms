@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Models\Editlog;
 use Illuminate\Support\Facades\App;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Traits\MediaUploadingTrait;
@@ -3149,6 +3150,60 @@ class EmployeeListController extends Controller
 
         return redirect()->back()->with('error', 'অনুগ্রহপূর্বক আবার চেষ্টা করুন');
     }
+
+    public function pendingChange()
+    {
+        $pendingQuery = Editlog::with(['employee', 'user']);
+
+        $userId = Auth::id();
+        $userInfo = User::select('forest_circle_id', 'forest_division_id')->find($userId);
+
+        // Additional filtering based on user circle/division
+        if ($userInfo->forest_circle_id && !$userInfo->forest_division_id) {
+            $sameOfficeIds = User::where('forest_circle_id', $userInfo->forest_circle_id)->pluck('id');
+            $pendingQuery->whereIn('edited_by', $sameOfficeIds);
+        } elseif (!$userInfo->forest_circle_id && $userInfo->forest_division_id) {
+            $sameOfficeIds = User::where('forest_division_id', $userInfo->forest_division_id)->pluck('id');
+            $pendingQuery->whereIn('edited_by', $sameOfficeIds);
+        }
+
+
+        $pendingChange = Editlog::orderBy('id', 'desc')
+            ->where('status', 0)
+            ->paginate(10);
+
+        return view('admin.employeeLists.pending-change', compact('pendingChange'));
+    }
+
+    public function approveMultiple(Request $request)
+    {
+        $ids = $request->input('changes', []);
+
+        $editLogs = Editlog::whereIn('id', $ids)->get();
+
+        foreach ($editLogs as $log) {
+            $modelClass = $log->form_model;
+
+            if ($modelClass && $log->field && $log->data_id && class_exists($modelClass)) {
+                $record = $modelClass::find($log->data_id);
+
+                if ($record && isset($record->{$log->field})) {
+                    // Update the target field with the new content
+                    $record->{$log->field} = $log->content;
+                    $record->save();
+                }
+            }
+
+            // Mark the change as approved
+            $log->status = 1;
+            $log->save();
+        }
+
+        return redirect()->back()->with('success', 'Selected changes have been approved and applied.');
+    }
+
+
+
 
 
 

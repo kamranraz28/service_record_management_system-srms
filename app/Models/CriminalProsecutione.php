@@ -61,12 +61,12 @@ class CriminalProsecutione extends Model implements HasMedia
     {
         return $this->belongsTo(EmployeeList::class, 'employee_id');
     }
-	
+
 	public function mamla()
     {
         return $this->belongsTo(MamlaType::class, 'mamla_id');
     }
-	
+
 	public function situation()
     {
         return $this->belongsTo(MamlaSituation::class, 'situation_id');
@@ -80,12 +80,12 @@ class CriminalProsecutione extends Model implements HasMedia
     {
         return $this->getMedia('court_order')->last();
     }
-	
+
 	public function getCourtOrderNewAttribute()
     {
         return $this->getMedia('court_order_new')->last();
     }
-	
+
 	public function getAppealOrderAttribute()
     {
         return $this->getMedia('appeal_order')->last();

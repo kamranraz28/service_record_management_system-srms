@@ -8,6 +8,7 @@ use App\Http\Requests\MassDestroyAwardRequest;
 use App\Http\Requests\StoreAwardRequest;
 use App\Http\Requests\UpdateAwardRequest;
 use App\Models\Award;
+use App\Models\Editlog;
 use App\Models\EmployeeList;
 use Gate;
 use Illuminate\Http\Request;
@@ -24,9 +25,9 @@ class AwardsController extends Controller
     {
         abort_if(Gate::denies('award_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
-		$userId = Auth::id(); 
+		$userId = Auth::id();
 		//dd($userId);
-		
+
 		$userInfo = User::select('forest_circle_id', 'forest_division_id')
 					->where('id', $userId)
 					->first();
@@ -34,13 +35,13 @@ class AwardsController extends Controller
 		// dd($divisions);
 		$circles= $userInfo->forest_circle_id;
 		//dd($circles);
-		
+
 		if ($circles !== null && $divisions == null) {
-				
+
 			$sameOfficeIds = User::select('id')
 				->where('forest_circle_id', $circles)
 				->pluck('id');
-				
+
 			$awards = Award::with(['employee', 'media'])
 				->whereHas('employee', function ($query) use ($sameOfficeIds) {
 					$query->whereIn('created_by', $sameOfficeIds);
@@ -48,11 +49,11 @@ class AwardsController extends Controller
 				->get();
 
 		}elseif ($circles == null && $divisions !== null) {
-			
+
 			$sameOfficeIds = User::select('id')
 				->where('forest_division_id', $divisions)
 				->pluck('id');
-				
+
 			$awards = Award::with(['employee', 'media'])
 				->whereHas('employee', function ($query) use ($sameOfficeIds) {
 					$query->whereIn('created_by', $sameOfficeIds);
@@ -105,21 +106,96 @@ class AwardsController extends Controller
         return view('admin.awards.edit', compact('award', 'employees'));
     }
 
-    public function update(UpdateAwardRequest $request, Award $award)
-    {
-        $award->update($request->all());
+    // public function update(UpdateAwardRequest $request, Award $award)
+    // {
+    //     $award->update($request->all());
 
-        if ($request->input('certificate', false)) {
-            if (! $award->certificate || $request->input('certificate') !== $award->certificate->file_name) {
-                if ($award->certificate) {
-                    $award->certificate->delete();
-                }
-                $award->addMedia(storage_path('tmp/uploads/' . basename($request->input('certificate'))))->toMediaCollection('certificate');
-            }
-        } elseif ($award->certificate) {
-            $award->certificate->delete();
+    //     if ($request->input('certificate', false)) {
+    //         if (! $award->certificate || $request->input('certificate') !== $award->certificate->file_name) {
+    //             if ($award->certificate) {
+    //                 $award->certificate->delete();
+    //             }
+    //             $award->addMedia(storage_path('tmp/uploads/' . basename($request->input('certificate'))))->toMediaCollection('certificate');
+    //         }
+    //     } elseif ($award->certificate) {
+    //         $award->certificate->delete();
+    //     }
+
+    //     return redirect()->back()->with('status', __('global.updateAction'));
+    // }
+
+    public function update(Request $request)
+    {
+        //dd($request->all());
+
+        $fieldLabels = [
+            'title' => 'নাম',
+            'ground_area' => 'বিষয়',
+            'institution' => 'পুরস্কার প্রদানকারী',
+            'year' => 'সাল',
+            'certificate' => 'সনদ সংযোজন',
+        ];
+        $award = Award::findOrFail($request->id);
+
+        // Exclude 'certificate' from fill since it's handled manually
+        $award->fill($request->except('certificate'));
+
+        // Check for changed attributes
+        foreach ($award->getDirty() as $field => $newValue) {
+            $dropdownFields = [];
+            $type = in_array($field, $dropdownFields) ? 2 : 1;
+
+            // Log field change
+            Editlog::create([
+                'type' => $type,
+                'form' => 15,
+                'data_id' => $award->id,
+                'field' => $field,
+                'level' => $fieldLabels[$field] ?? ucfirst(str_replace('_', ' ', $field)),
+                'content' => $newValue,
+                'edit_by' => auth()->id(),
+                'employee_id' => $award->employee->id,
+            ]);
         }
 
+        // Handle 'certificate' file logic manually (not via isDirty())
+        if ($request->has('certificate')) {
+            $filename = basename($request->input('certificate'));
+            $tmpPath = storage_path('tmp/uploads/' . $filename);
+
+            if (file_exists($tmpPath)) {
+                // Store the new file without deleting old
+                $award
+                    ->addMedia($tmpPath)
+                    ->toMediaCollection('certificate');
+
+                // Log upload
+                Editlog::create([
+                    'type' => 3,
+                    'form' => 15,
+                    'data_id' => $award->id,
+                    'field' => 'certificate',
+                    'level' => $fieldLabels['certificate'] ?? 'certificate',
+                    'content' => $filename,
+                    'edit_by' => auth()->id(),
+                    'employee_id' => $award->employee->id,
+                ]);
+            }
+        } else {
+            // No file in request, assume clearing certificate
+            $award->clearMediaCollection('certificate');
+
+            Editlog::create([
+                'type' => 3,
+                'form' => 15,
+                'data_id' => $award->id,
+                'field' => 'certificate',
+                'level' => $fieldLabels['certificate'] ?? 'certificate',
+                'content' => '',
+                'edit_by' => auth()->id(),
+                'employee_id' => $award->employee->id,
+            ]);
+        }
         return redirect()->back()->with('status', __('global.updateAction'));
     }
 

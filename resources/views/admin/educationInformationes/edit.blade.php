@@ -43,7 +43,7 @@
                         <span
                             class="help-block">{{ trans('cruds.educationInformatione.fields.name_of_exam_helper') }}</span>
                     </div>
-					
+
 					<div class="form-group">
                         <label class="required"
                             for="exam_degree">{{ trans('cruds.educationInformatione.fields.exam_degree') }}</label>
@@ -57,10 +57,10 @@
 								@endforeach
 							</select>
 
-                        
-                        
+
+
                     </div>
-					
+
                     <div class="form-group">
                         <label for="exam_board_id">{{ trans('cruds.educationInformatione.fields.exam_board') }}</label>
                         <select class="form-control select2 {{ $errors->has('exam_board') ? 'is-invalid' : '' }}"
@@ -137,7 +137,7 @@
                         <span
                             class="help-block">{{ trans('cruds.educationInformatione.fields.passing_year_helper') }}</span>
                     </div>
-					
+
 					<div class="form-group">
                         <label for="cgpa">জিপিএ/সিজিপিএ</label>
                         <input class="form-control {{ $errors->has('cgpa') ? 'is-invalid' : '' }}" type="text"
@@ -194,7 +194,7 @@
                             class="help-block">{{ trans('cruds.educationInformatione.fields.catificarte_helper') }}</span>
                     </div>
 
-                    <x-hidden-input name="employee_id" value="{{ $educationInformatione->employee->id }}" />
+                    <x-hidden-input name="id" value="{{ $educationInformatione->id }}" />
                     {{-- <div class="form-group">
                         <label class="required"
                             for="employee_id">{{ trans('cruds.educationInformatione.fields.employee') }}</label>
@@ -213,9 +213,9 @@
                         @endif
                         <span class="help-block">{{ trans('cruds.educationInformatione.fields.employee_helper') }}</span>
                     </div> --}}
-                    
-                    
-					
+
+
+
                 </div>
                 <div class="form-group">
                     <button class="btn btn-danger" type="submit">

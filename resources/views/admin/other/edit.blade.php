@@ -22,9 +22,9 @@
             @method('PUT')
             @csrf
             <div class="row row-cols-3">
-                <x-hidden-input name="employee_id" value="{{ $other->employee->id }}" />
+                <x-hidden-input name="id" value="{{ $other->id }}" />
 
-                
+
                 <div class="form-group">
                             <label for="health_paper">
                                 @if (app()->getLocale() === 'bn')
@@ -58,13 +58,13 @@
                                 class="form-control date {{ $errors->has('possible_date') ? 'is-invalid' : '' }}"
                                 type="text" name="possible_date" id="possible_date"
                                 value="{{$other->possible_date}}">
-            
+
                         </div>
 
                         <div class="form-group">
                         <label for="office">
                                 @if (app()->getLocale() === 'bn')
-                                কর্মকর্তা/কর্মচারী সংযুক্তি হলে বর্তমান কর্মস্থল 
+                                কর্মকর্তা/কর্মচারী সংযুক্তি হলে বর্তমান কর্মস্থল
                                 @else
                                 Current workplace if officer/employee joins
                                 @endif
@@ -73,7 +73,7 @@
                                 class="form-control {{ $errors->has('office') ? 'is-invalid' : '' }}"
                                 type="text" name="office" id="office"
                                 value="{{$other->office}}">
-            
+
                         </div>
 
 

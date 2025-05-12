@@ -7,6 +7,7 @@ use App\Http\Controllers\Traits\MediaUploadingTrait;
 use App\Http\Requests\MassDestroyPublicationRequest;
 use App\Http\Requests\StorePublicationRequest;
 use App\Http\Requests\UpdatePublicationRequest;
+use App\Models\Editlog;
 use App\Models\EmployeeList;
 use App\Models\Publication;
 use Gate;
@@ -25,9 +26,9 @@ class PublicationController extends Controller
     {
         abort_if(Gate::denies('publication_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
-		$userId = Auth::id(); 
+		$userId = Auth::id();
 		//dd($userId);
-		
+
 		$userInfo = User::select('forest_circle_id', 'forest_division_id')
 					->where('id', $userId)
 					->first();
@@ -35,15 +36,15 @@ class PublicationController extends Controller
 		// dd($divisions);
 		$circles= $userInfo->forest_circle_id;
 		//dd($circles);
-		
+
         if ($request->ajax()) {
-			
+
 			if ($circles !== null && $divisions == null) {
-				
+
 				$sameOfficeIds = User::select('id')
 					->where('forest_circle_id', $circles)
 					->pluck('id');
-					
+
 				$query = Publication::with(['employee'])
 					->whereHas('employee', function ($query) use ($sameOfficeIds) {
 						$query->whereIn('created_by', $sameOfficeIds);
@@ -51,11 +52,11 @@ class PublicationController extends Controller
 					->select(sprintf('%s.*', (new Publication)->table));
 
 			}elseif ($circles == null && $divisions !== null) {
-				
+
 				$sameOfficeIds = User::select('id')
 					->where('forest_division_id', $divisions)
 					->pluck('id');
-					
+
 				$query = Publication::with(['employee'])
 					->whereHas('employee', function ($query) use ($sameOfficeIds) {
 						$query->whereIn('created_by', $sameOfficeIds);
@@ -66,7 +67,7 @@ class PublicationController extends Controller
 				$query = Publication::with(['employee'])
 				->select(sprintf('%s.*', (new Publication)->table));
 			}
-			
+
             $table = Datatables::of($query);
 
             $table->addColumn('placeholder', '&nbsp;');
@@ -151,9 +152,46 @@ class PublicationController extends Controller
         return view('admin.publications.edit', compact('employees', 'publication'));
     }
 
-    public function update(UpdatePublicationRequest $request, Publication $publication)
+    // public function update(UpdatePublicationRequest $request, Publication $publication)
+    // {
+    //     $publication->update($request->all());
+
+    //     return redirect()->back()->with('status', __('global.updateAction'));
+    // }
+
+    public function update(Request $request)
     {
-        $publication->update($request->all());
+        //dd($request->all());
+
+        $fieldLabels = [
+            'title' => 'প্রকাশনার নাম',
+            'publication_type' => 'প্রকাশনার ধরণ',
+            'publication_media' => 'প্রকাশনার মাধ্যম',
+            'publication_date' => 'তারিখ',
+            'publication_link' => 'সংযুক্তি(লিংক)',
+            'description' => 'বর্ণনা',
+        ];
+        $publication = Publication::findOrFail($request->id);
+
+
+        $publication->fill($request->all());
+
+        // Check for changed attributes
+        foreach ($publication->getDirty() as $field => $newValue) {
+
+            // Log field change
+            Editlog::create([
+                'type' => 1,
+                'form' => 14,
+                'data_id' => $publication->id,
+                'field' => $field,
+                'level' => $fieldLabels[$field] ?? ucfirst(str_replace('_', ' ', $field)),
+                'content' => $newValue,
+                'edit_by' => auth()->id(),
+                'employee_id' => $publication->employee->id,
+            ]);
+        }
+
 
         return redirect()->back()->with('status', __('global.updateAction'));
     }

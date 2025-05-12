@@ -21,6 +21,7 @@
                 enctype="multipart/form-data">
                 @method('PUT')
                 @csrf
+                <input type="hidden" name="id" value="{{ $jobHistory->id }}">
                 <div class="row row-cols-3">
 				{{--<div class="form-group">
                         <label class="required"
@@ -35,7 +36,7 @@
                         @endif
                         <span class="help-block">{{ trans('cruds.jobHistory.fields.institute_name_helper') }}</span>
 				</div>--}}
-					
+
 					<div class="form-group">
 						<label for="office_unit_id">অফিস</label>
 						<select class="form-select select2 {{ $errors->has('office_unit_id') ? 'is-invalid' : '' }}"
@@ -48,14 +49,14 @@
 							@endforeach
 						</select>
 					</div>
-					
+
 					<div class="form-group">
                         <label for="level_2">অফিসের নাম (হেড অফিসে পোস্টিং হলে)</label>
                         <input class="form-control {{ $errors->has('level_2') ? 'is-invalid' : '' }}" type="text"
                             name="level_2" id="level_2" value="{{ old('level_2', $jobHistory->level_2) }}">
-                        
+
                     </div>
-					
+
 					<div class="form-group">
 						<label for="circle_list_id">সার্কেল</label>
 						<select class="form-select select2 {{ $errors->has('circle_list_id') ? 'is-invalid' : '' }}"
@@ -68,7 +69,7 @@
 							@endforeach
 						</select>
 					</div>
-					
+
 					<div class="form-group">
 						<label for="division_list_id">ডিভিশন</label>
 						<select class="form-select select2 {{ $errors->has('division_list_id') ? 'is-invalid' : '' }}"
@@ -81,7 +82,7 @@
 							@endforeach
 						</select>
 					</div>
-					
+
 					<div class="form-group">
 						<label for="range_list_id">রেঞ্জ/এসএফএনটিসি</label>
 						<select class="form-select select2 {{ $errors->has('range_list_id') ? 'is-invalid' : '' }}"
@@ -94,7 +95,7 @@
 							@endforeach
 						</select>
 					</div>
-					
+
 					<div class="form-group">
 						<label for="beat_list_id">বিট/এসএফপিসি</label>
 						<select class="form-select select2 {{ $errors->has('beat_list_id') ? 'is-invalid' : '' }}"
@@ -107,11 +108,11 @@
 							@endforeach
 						</select>
 					</div>
-					
-					
 
-					
-                    
+
+
+
+
                     <div class="form-group">
                         <label for="designation_id">{{ trans('cruds.jobHistory.fields.designation') }}</label>
                         <select class="form-select select2 {{ $errors->has('designation') ? 'is-invalid' : '' }}"
@@ -154,9 +155,9 @@
                         @endif
                         <span class="help-block">{{ trans('cruds.jobHistory.fields.release_date_helper') }}</span>
                     </div>
-				
 
-                    
+
+
                     <div class="form-group">
                         <label class="required" for="grade_id">{{ trans('cruds.jobHistory.fields.grade') }}</label>
                         <select class="form-select select2 {{ $errors->has('grade') ? 'is-invalid' : '' }}"
@@ -167,7 +168,7 @@
                                     {{ $entry }}</option>
                             @endforeach
                         </select>
-                        
+
                         <span class="help-block">{{ trans('cruds.jobHistory.fields.grade_helper') }}</span>
                     </div>
 
@@ -183,12 +184,12 @@
                         @endif
                         <span class="help-block">{{ trans('cruds.jobHistory.fields.go_upload_helper') }}</span>
                     </div>
-					
+
 					<div class="form-group">
                         <label for="comment">মন্তব্য</label>
                         <input class="form-control {{ $errors->has('comment') ? 'is-invalid' : '' }}" type="text"
                             name="comment" id="comment" value="{{ old('comment', $jobHistory->comment) }}">
-                        
+
                     </div>
                 </div>
                 <div class="form-group">

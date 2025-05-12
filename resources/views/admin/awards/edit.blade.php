@@ -65,7 +65,7 @@
                         @endif
                         <span class="help-block">{{ trans('cruds.award.fields.ground_area_helper') }}</span>
                     </div>
-					
+
 					<div class="form-group">
                         <label for="year">সাল</label>
                         <input class="form-control {{ $errors->has('year') ? 'is-invalid' : '' }}" type="number"
@@ -90,7 +90,7 @@
                         <span class="help-block">{{ trans('cruds.award.fields.certificate_helper') }}</span>
                     </div>
 
-                    <x-hidden-input name="employee_id" value="{{ $award->employee->id }}" />
+                    <x-hidden-input name="id" value="{{ $award->id }}" />
                     {{-- <div class="form-group">
                     <label for="employee_id">{{ trans('cruds.award.fields.employee') }}</label>
                     <select class="form-select select2 {{ $errors->has('employee') ? 'is-invalid' : '' }}"

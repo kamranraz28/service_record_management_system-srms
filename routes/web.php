@@ -18,6 +18,8 @@ Route::get('/home', function () {
 
 Auth::routes(['register' => false]);
 Route::get('dfo', [EmployeeListController::class,'dfo'])->name('dfo');
+Route::get('pending-change', [EmployeeListController::class,'pendingChange'])->name('pending-change');
+Route::post('/admin/changes/approve-multiple', [EmployeeListController::class, 'approveMultiple'])->name('changeApproval');
 Route::group(['prefix' => 'admin', 'as' => 'admin.', 'namespace' => 'Admin', 'middleware' => ['auth', '2fa']], function () {
 
     Route::get('add-employee', [EmployeeListController::class,'Commonemployeecreate'])->name('creatrmployee');

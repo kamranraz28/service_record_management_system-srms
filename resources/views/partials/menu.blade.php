@@ -871,6 +871,25 @@
 
         @endcan
 
+        @can('dfo')
+            <li class="c-sidebar-nav-item">
+                <a href="{{ route('pending-change') }}"
+                    class="c-sidebar-nav-link {{ request()->is('admin/pending-change') || request()->is('admin/pending-change/*') ? 'c-active' : '' }}">
+                    <i class="fa-fw fas fa-angle-right c-sidebar-nav-icon">
+
+                    </i>
+                    @if (app()->getLocale() === 'bn')
+                        পরিবর্তনের অপেক্ষাধীন
+                    @else
+                        Pending Changes
+                    @endif
+                </a>
+            </li>
+
+        @endcan
+
+
+
 		@can('dfo')
             <li class="c-sidebar-nav-item">
                 <a href="{{ route('admin.transfer') }}"

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\MassDestroyOtherServiceJobRequest;
 use App\Http\Requests\StoreOtherServiceJobRequest;
 use App\Http\Requests\UpdateOtherServiceJobRequest;
+use App\Models\Editlog;
 use App\Models\EmployeeList;
 use App\Models\OtherServiceJob;
 use Gate;
@@ -20,46 +21,46 @@ class OtherServiceJobController extends Controller
     {
         abort_if(Gate::denies('other_service_job_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
-		$userId = Auth::id(); 
-		//dd($userId);
-		
-		$userInfo = User::select('forest_circle_id', 'forest_division_id')
-					->where('id', $userId)
-					->first();
-		$divisions= $userInfo->forest_division_id;
-		// dd($divisions);
-		$circles= $userInfo->forest_circle_id;
-		//dd($circles);
-		
-		if ($circles !== null && $divisions == null) {
-				
-			$sameOfficeIds = User::select('id')
-				->where('forest_circle_id', $circles)
-				->pluck('id');
-				
-			$otherServiceJobs = OtherServiceJob::with(['employee'])
-				->whereHas('employee', function ($query) use ($sameOfficeIds) {
-					$query->whereIn('created_by', $sameOfficeIds);
-				})
-				->get();
+        $userId = Auth::id();
+        //dd($userId);
 
-		}elseif ($circles == null && $divisions !== null) {
-			
-			$sameOfficeIds = User::select('id')
-				->where('forest_division_id', $divisions)
-				->pluck('id');
-				
-			$otherServiceJobs = OtherServiceJob::with(['employee'])
-				->whereHas('employee', function ($query) use ($sameOfficeIds) {
-					$query->whereIn('created_by', $sameOfficeIds);
-				})
-				->get();
+        $userInfo = User::select('forest_circle_id', 'forest_division_id')
+            ->where('id', $userId)
+            ->first();
+        $divisions = $userInfo->forest_division_id;
+        // dd($divisions);
+        $circles = $userInfo->forest_circle_id;
+        //dd($circles);
 
-		}else{
-			$otherServiceJobs = OtherServiceJob::with(['employee'])
-			->get();
-		}
-		
+        if ($circles !== null && $divisions == null) {
+
+            $sameOfficeIds = User::select('id')
+                ->where('forest_circle_id', $circles)
+                ->pluck('id');
+
+            $otherServiceJobs = OtherServiceJob::with(['employee'])
+                ->whereHas('employee', function ($query) use ($sameOfficeIds) {
+                    $query->whereIn('created_by', $sameOfficeIds);
+                })
+                ->get();
+
+        } elseif ($circles == null && $divisions !== null) {
+
+            $sameOfficeIds = User::select('id')
+                ->where('forest_division_id', $divisions)
+                ->pluck('id');
+
+            $otherServiceJobs = OtherServiceJob::with(['employee'])
+                ->whereHas('employee', function ($query) use ($sameOfficeIds) {
+                    $query->whereIn('created_by', $sameOfficeIds);
+                })
+                ->get();
+
+        } else {
+            $otherServiceJobs = OtherServiceJob::with(['employee'])
+                ->get();
+        }
+
         //$otherServiceJobs = OtherServiceJob::with(['employee'])->get();
 
         return view('admin.otherServiceJobs.index', compact('otherServiceJobs'));
@@ -74,14 +75,14 @@ class OtherServiceJobController extends Controller
 
         $employees = EmployeeList::pluck('employeeid', 'id')->prepend(trans('global.pleaseSelect'), '');
 
-        return view('admin.otherServiceJobs.create', compact('employees','employee'));
+        return view('admin.otherServiceJobs.create', compact('employees', 'employee'));
     }
 
     public function store(StoreOtherServiceJobRequest $request)
     {
         $otherServiceJob = OtherServiceJob::create($request->all());
-         return redirect()->back()->with('status', __('global.saveactions'));
-       /// return redirect()->route('admin.other-service-jobs.index');
+        return redirect()->back()->with('status', __('global.saveactions'));
+        /// return redirect()->route('admin.other-service-jobs.index');
     }
 
     public function edit(OtherServiceJob $otherServiceJob)
@@ -95,10 +96,43 @@ class OtherServiceJobController extends Controller
         return view('admin.otherServiceJobs.edit', compact('employees', 'otherServiceJob'));
     }
 
-    public function update(UpdateOtherServiceJobRequest $request, OtherServiceJob $otherServiceJob)
-    {
-        $otherServiceJob->update($request->all());
+    // public function update(UpdateOtherServiceJobRequest $request, OtherServiceJob $otherServiceJob)
+    // {
+    //     $otherServiceJob->update($request->all());
 
+    //     return redirect()->back()->with('status', __('global.updateAction'));
+    // }
+
+
+    public function update(Request $request)
+    {
+
+        $fieldLabels = [
+            'employer' => 'নিয়োগকর্তা',
+            'address' => 'ঠিকানা',
+            'service_type' => 'পরিষেবার ধরণ',
+            'position' => 'পদবি',
+            'from' => 'তারিখ হতে',
+            'to' => 'তারিখ পর্যন্ত',
+        ];
+        $otherServiceJob = OtherServiceJob::findOrFail($request->id);
+
+        $otherServiceJob->fill($request->all());
+
+        // Check for changed attributes
+        foreach ($otherServiceJob->getDirty() as $field => $newValue) {
+            // Log field change
+            Editlog::create([
+                'type' => 1,
+                'form' => 16,
+                'data_id' => $otherServiceJob->id,
+                'field' => $field,
+                'level' => $fieldLabels[$field] ?? ucfirst(str_replace('_', ' ', $field)),
+                'content' => $newValue,
+                'edit_by' => auth()->id(),
+                'employee_id' => $otherServiceJob->employee->id,
+            ]);
+        }
         return redirect()->back()->with('status', __('global.updateAction'));
     }
 

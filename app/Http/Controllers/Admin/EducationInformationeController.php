@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Models\Editlog;
 use Illuminate\Support\Facades\App;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Traits\MediaUploadingTrait;
@@ -31,9 +32,9 @@ class EducationInformationeController extends Controller
     {
         abort_if(Gate::denies('education_informatione_access'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
-		$userId = Auth::id(); 
+		$userId = Auth::id();
 		//dd($userId);
-		
+
 		$userInfo = User::select('forest_circle_id', 'forest_division_id')
 					->where('id', $userId)
 					->first();
@@ -42,13 +43,13 @@ class EducationInformationeController extends Controller
 		$circles= $userInfo->forest_circle_id;
 		//dd($circles);
         if ($request->ajax()) {
-			
+
             if ($circles !== null && $divisions == null) {
 				// Fetch the same office IDs based on the circles
 				$sameOfficeIds = User::select('id')
 					->where('forest_circle_id', $circles)
 					->pluck('id');
-					
+
 				$query = EducationInformatione::with(['name_of_exam', 'exam_board', 'result', 'achievement_types', 'employee'])
 					->whereHas('employee', function ($query) use ($sameOfficeIds) {
 						$query->whereIn('created_by', $sameOfficeIds);
@@ -60,7 +61,7 @@ class EducationInformationeController extends Controller
 				$sameOfficeIds = User::select('id')
 					->where('forest_division_id', $divisions)
 					->pluck('id');
-					
+
 				$query = EducationInformatione::with(['name_of_exam', 'exam_board', 'result', 'achievement_types', 'employee'])
 					->whereHas('employee', function ($query) use ($sameOfficeIds) {
 						$query->whereIn('created_by', $sameOfficeIds);
@@ -71,7 +72,7 @@ class EducationInformationeController extends Controller
 				$query = EducationInformatione::with(['name_of_exam', 'exam_board', 'result', 'achievement_types', 'employee'])
 					->select(sprintf('%s.*', (new EducationInformatione)->table));
 			}
-			
+
 			$table = Datatables::of($query);
 
 
@@ -99,7 +100,7 @@ class EducationInformationeController extends Controller
             $table->addColumn('name_of_exam_name_bn', function ($row) {
                 return $row->name_of_exam ? $row->name_of_exam->name_bn : '';
             });
-			
+
 			$table->addColumn('exam_degree', function ($row) {
                 return $row->exam_degree ? $row->examdegree->name_bn : '';
             });
@@ -141,7 +142,7 @@ class EducationInformationeController extends Controller
             $table->editColumn('employee.fullname_bn', function ($row) {
                 return $row->employee ? (is_string($row->employee) ? $row->employee : $row->employee->fullname_bn) : '';
             });
-            
+
             $table->editColumn('cgpa', function ($row) {
                 return $row->cgpa ? englishToBanglaNumber($row->cgpa) : '';
             });
@@ -194,7 +195,7 @@ class EducationInformationeController extends Controller
         abort_if(Gate::denies('education_informatione_edit'), Response::HTTP_FORBIDDEN, '403 Forbidden');
 
         $name_of_exams = Examination::pluck($columname, 'id')->prepend(trans('global.pleaseSelect'), '');
-		
+
 		$name_of_degrees = ExamDegree::pluck($columname, 'id')->prepend(trans('global.pleaseSelect'), '');
 
 
@@ -211,23 +212,106 @@ class EducationInformationeController extends Controller
         return view('admin.educationInformationes.edit', compact('name_of_degrees','achievement_types', 'educationInformatione', 'employees', 'exam_boards', 'name_of_exams', 'results'));
     }
 
-    public function update(UpdateEducationInformationeRequest $request, EducationInformatione $educationInformatione)
-    {
-        $educationInformatione->update($request->all());
+    // public function update(UpdateEducationInformationeRequest $request, EducationInformatione $educationInformatione)
+    // {
+    //     $educationInformatione->update($request->all());
 
-        if ($request->input('catificarte', false)) {
-            if (!$educationInformatione->catificarte || $request->input('catificarte') !== $educationInformatione->catificarte->file_name) {
-                if ($educationInformatione->catificarte) {
-                    $educationInformatione->catificarte->delete();
-                }
-                $educationInformatione->addMedia(storage_path('tmp/uploads/' . basename($request->input('catificarte'))))->toMediaCollection('catificarte');
-            }
-        } elseif ($educationInformatione->catificarte) {
-            $educationInformatione->catificarte->delete();
+    //     if ($request->input('catificarte', false)) {
+    //         if (!$educationInformatione->catificarte || $request->input('catificarte') !== $educationInformatione->catificarte->file_name) {
+    //             if ($educationInformatione->catificarte) {
+    //                 $educationInformatione->catificarte->delete();
+    //             }
+    //             $educationInformatione->addMedia(storage_path('tmp/uploads/' . basename($request->input('catificarte'))))->toMediaCollection('catificarte');
+    //         }
+    //     } elseif ($educationInformatione->catificarte) {
+    //         $educationInformatione->catificarte->delete();
+    //     }
+
+    //     return redirect()->back()->with('status', __('global.updateAction'));
+    // }
+
+    public function update(Request $request)
+    {
+
+        $fieldLabels = [
+            'name_of_exam_id' => 'পরীক্ষার নাম',
+            'exam_degree' => 'ডিগ্রী',
+            'exam_board_id' => 'শিক্ষা বোর্ড',
+            'concentration_major_group' => 'প্রধান বিষয়',
+            'school_university_name' => 'শিক্ষা-প্রতিষ্ঠানের নাম',
+            'result_id' => 'ফলাফল',
+            'passing_year' => 'পাসের সন',
+            'cgpa' => 'জিপিএ/সিজিপিএ',
+            'catificarte' => 'সনদপত্র',
+        ];
+        $educationInformatione = EducationInformatione::findOrFail($request->id);
+
+        // Exclude 'catificarte' from fill since it's handled manually
+        $educationInformatione->fill($request->except('catificarte'));
+
+        // Check for changed attributes
+        foreach ($educationInformatione->getDirty() as $field => $newValue) {
+            $dropdownFields = ['name_of_exam_id', 'exam_degree', 'exam_board_id', 'result_id'];
+            $type = in_array($field, $dropdownFields) ? 2 : 1;
+
+            // Log field change
+            Editlog::create([
+                'type' => $type,
+                'form' => 2,
+                'data_id' => $educationInformatione->id,
+                'field' => $field,
+                'level' => $fieldLabels[$field] ?? ucfirst(str_replace('_', ' ', $field)),
+                'content' => $newValue,
+                'edit_by' => auth()->id(),
+                'employee_id' => $educationInformatione->employee->id,
+            ]);
         }
+
+        // Handle 'catificarte' file logic manually (not via isDirty())
+        // Handle 'catificarte' file logic manually (not via isDirty())
+    if ($request->has('catificarte')) {
+        $filename = basename($request->input('catificarte'));
+        $tmpPath = storage_path('tmp/uploads/' . $filename);
+
+        if (file_exists($tmpPath)) {
+            // Store the new file without deleting old
+            $educationInformatione
+                ->addMedia($tmpPath)
+                ->toMediaCollection('catificarte');
+
+            // Log upload
+            Editlog::create([
+                'type' => 3,
+                'form' => 2,
+                'data_id' => $educationInformatione->id,
+                'field' => 'catificarte',
+                'level' => $fieldLabels['catificarte'] ?? 'Catificarte',
+                'content' => $filename,
+                'edit_by' => auth()->id(),
+                'employee_id' => $educationInformatione->employee->id,
+            ]);
+        }
+    } else {
+        // No file in request, assume clearing certificate
+        $educationInformatione->clearMediaCollection('catificarte');
+
+        Editlog::create([
+            'type' => 3,
+            'form' => 2,
+            'data_id' => $educationInformatione->id,
+            'field' => 'catificarte',
+            'level' => $fieldLabels['catificarte'] ?? 'Catificarte',
+            'content' => 'null',
+            'edit_by' => auth()->id(),
+            'employee_id' => $educationInformatione->employee->id,
+        ]);
+    }
+
 
         return redirect()->back()->with('status', __('global.updateAction'));
     }
+
+
 
     public function show(EducationInformatione $educationInformatione)
     {
