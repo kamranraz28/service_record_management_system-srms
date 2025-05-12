@@ -156,16 +156,19 @@
                                 'childinformationes',
                                 'jobhistories',
                                 'employeepromotions',
+                                'leaverecords',
                                 'trainings',
                                 'travelRecords',
-                                'foreigntravelpersonals',
                                 'extracurriculams',
+                                'publications',
+                                'awards',
                                 'otherservicejobs',
                                 'languages',
+                                'criminalprosecutiones',
                                 'acrmonitorings',
-                                'awards',
-                                'acrmonitorings',
-                                'publications',
+                                'policeVerification',
+                                'timeScale',
+                                'others',
                             ];
 
                             $totalvalue = count($relationships) + 1;

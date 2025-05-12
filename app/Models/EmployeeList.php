@@ -611,6 +611,17 @@ class EmployeeList extends Model implements HasMedia
 		return $this->belongsTo(User::class, 'approveby', 'id');
 	}
 
+    public function policeVerification()
+    {
+        return $this->hasOne(PoliceVerification::class, 'employee_id', 'id');
+    }
+
+    public function timeScale()
+    {
+        return $this->hasOne(TimeScale::class, 'employee_id', 'id');
+    }
+
+
 
 
 
