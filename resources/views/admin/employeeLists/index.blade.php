@@ -159,13 +159,10 @@
                                 'leaverecords',
                                 'trainings',
                                 'travelRecords',
-                                'extracurriculams',
                                 'publications',
                                 'awards',
                                 'otherservicejobs',
-                                'languages',
                                 'criminalprosecutiones',
-                                'acrmonitorings',
                                 'policeVerification',
                                 'timeScale',
                                 'others',
@@ -211,6 +208,7 @@
                             @endif
 
                         </a>
+                        @can('employee_list_delete')
                         <a href="{{ route('admin.employeedata.delete', ['id' => $empID]) }}"
                             class="btn btn-sm btn-danger"
                             onclick="return confirm('{{ app()->getLocale() === 'bn' ? 'আপনি কি নিশ্চিতভাবে ডিলিট করতে চান?' : 'Are you sure you want to delete?' }}')">
@@ -222,6 +220,7 @@
                                 @endif
 
                             </a>
+                        @endcan
                     </div>
                 </div>
             </div>

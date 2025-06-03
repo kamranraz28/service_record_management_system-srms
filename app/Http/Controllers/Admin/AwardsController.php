@@ -184,17 +184,6 @@ class AwardsController extends Controller
         } else {
             // No file in request, assume clearing certificate
             $award->clearMediaCollection('certificate');
-
-            Editlog::create([
-                'type' => 3,
-                'form' => 15,
-                'data_id' => $award->id,
-                'field' => 'certificate',
-                'level' => $fieldLabels['certificate'] ?? 'certificate',
-                'content' => '',
-                'edit_by' => auth()->id(),
-                'employee_id' => $award->employee->id,
-            ]);
         }
         return redirect()->back()->with('status', __('global.updateAction'));
     }

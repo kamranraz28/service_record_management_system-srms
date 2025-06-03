@@ -34,6 +34,10 @@ use App\Models\User;
 use App\Models\ForestDivision;
 use App\Models\ForestState;
 use App\Models\TransferLog;
+use Maatwebsite\Excel\Facades\Excel;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 
 use Gate;
@@ -2129,17 +2133,82 @@ class EmployeeListController extends Controller
         return $pdf->stream($fileName);
     }
 
+    public function downloadSeniorityListDesignationExcel(Request $request)
+{
+    $designation_ids = $request->input('designation_id', []);
+    $seniorityListReport = [];
+
+    $employeeQuery = EmployeeList::where('approve', 'approved');
+    if (!empty($designation_ids)) {
+        $employeeQuery->whereIn('designation_id', $designation_ids);
+    }
+
+    $employeeList = $employeeQuery->get();
+
+    foreach ($employeeList as $employee) {
+        $trainingNames = $employee->training_list->pluck('training_name')->toArray();
+
+        $seniorityListReport[] = [
+            'Employee Name (BN)' => $employee->fullname_bn ?? '',
+            'Employee Name (EN)' => $employee->fullname_en ?? '',
+            'Designation (BN)' => $employee->designation->name_bn ?? '',
+            'Designation (EN)' => $employee->designation->name_en ?? '',
+            'Date of Birth' => $employee->date_of_birth ?? '',
+            'First Joining Date' => $employee->fjoining_date ?? '',
+            'Promotion Date' => $employee->promotion->go_issue_date ?? '',
+            'Regularization Date' => $employee->date_of_regularization ?? '',
+            'Home District (BN)' => $employee->home_district->name_bn ?? '',
+            'Home District (EN)' => $employee->home_district->name_en ?? '',
+            'Project/Revenue Type (BN)' => $employee->projectrevenue->project_revenue_bn ?? '',
+            'Project/Revenue Type (EN)' => $employee->projectrevenue->project_revenue_en ?? '',
+            'Project Name (BN)' => $employee->project->name_bn ?? '',
+            'Project Name (EN)' => $employee->project->name_en ?? '',
+            'Training Names' => implode(', ', $trainingNames),
+            'Circle (EN)' => $employee->jobhistory->circle_list->name_en ?? '',
+            'Division (EN)' => $employee->jobhistory->division_list->name_en ?? '',
+            'Range (EN)' => $employee->jobhistory->range_list->name_en ?? '',
+            'Beat (EN)' => $employee->jobhistory->beat_list->name_en ?? '',
+            'Current Office' => $employee->jobhistory->level_2 ?? '',
+        ];
+    }
+
+    // Create a spreadsheet and fill with data
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+
+    // Add headings
+    if (!empty($seniorityListReport)) {
+        $sheet->fromArray(array_keys($seniorityListReport[0]), NULL, 'A1');
+        $sheet->fromArray($seniorityListReport, NULL, 'A2');
+    }
+
+    // Output the file as a download
+    $writer = new Xlsx($spreadsheet);
+    $fileName = 'seniority_list_' . date('Y-m-d') . '.xlsx';
+
+    return response()->streamDownload(function () use ($writer) {
+        $writer->save('php://output');
+    }, $fileName, [
+        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ]);
+}
+
 
 
 
 
     public function seniority_list_report_download()
     {
+        ini_set('max_execution_time', 1800); // 30 minutes
+    ini_set('memory_limit', '1024M');
+    set_time_limit(1800);
+    ini_set('pcre.backtrack_limit', '10000000');
+
         $seniorityListReport = [];
         $employeeList = EmployeeList::where('approve', 'approved')->get();
 
         // Split employee list into chunks of 100
-        $chunks = $employeeList->chunk(100);
+        $chunks = $employeeList->chunk(500);
         $zipFileName = 'seniorityListReports_' . date('Y-m-d') . '.zip';
         $zipPath = storage_path('app/public/' . $zipFileName);
         $pdfPaths = [];
@@ -2190,6 +2259,9 @@ class EmployeeListController extends Controller
                     'project_name_en' => $employee->project->name_en ?? '',
                 ];
             }
+
+            $seniorityListReport = collect($seniorityListReport); // FIX HERE
+
 
             // Generate a PDF for the current chunk
             $pdf = PDF::loadView('admin.employeeLists.seniorityListReportDownload', compact('seniorityListReport'), [], [
@@ -2549,6 +2621,10 @@ class EmployeeListController extends Controller
             $employeeList->addMedia(storage_path('tmp/uploads/' . basename($request->input('fjoining_letter'))))->toMediaCollection('fjoining_letter');
         }
 
+        if ($request->input('transfer_order', false)) {
+            $employeeList->addMedia(storage_path('tmp/uploads/' . basename($request->input('transfer_order'))))->toMediaCollection('transfer_order');
+        }
+
         if ($request->input('date_of_gazette_if_any', false)) {
             $employeeList->addMedia(storage_path('tmp/uploads/' . basename($request->input('date_of_gazette_if_any'))))->toMediaCollection('date_of_gazette_if_any');
         }
@@ -2631,6 +2707,7 @@ class EmployeeListController extends Controller
 
     public function update(UpdateEmployeeListRequest $request, EmployeeList $employeeList)
     {
+        dd($request->all());
         $employeeList->update($request->all());
 
         if ($request->input('birth_certificate_upload', false)) {
@@ -3161,10 +3238,10 @@ class EmployeeListController extends Controller
         // Additional filtering based on user circle/division
         if ($userInfo->forest_circle_id && !$userInfo->forest_division_id) {
             $sameOfficeIds = User::where('forest_circle_id', $userInfo->forest_circle_id)->pluck('id');
-            $pendingQuery->whereIn('edited_by', $sameOfficeIds);
+            $pendingQuery->whereIn('edit_by', $sameOfficeIds);
         } elseif (!$userInfo->forest_circle_id && $userInfo->forest_division_id) {
             $sameOfficeIds = User::where('forest_division_id', $userInfo->forest_division_id)->pluck('id');
-            $pendingQuery->whereIn('edited_by', $sameOfficeIds);
+            $pendingQuery->whereIn('edit_by', $sameOfficeIds);
         }
 
 

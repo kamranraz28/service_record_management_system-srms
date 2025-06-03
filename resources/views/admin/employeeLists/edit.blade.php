@@ -10,6 +10,7 @@
             enctype="multipart/form-data">
             @method('PUT')
             @csrf
+            <input type="hidden" name="id" value="{{ $employeeList->id }}">
             <div class="row row-cols-3">
                 {{--<div class="form-group">
                     <label class="required" for="employeeid">{{ trans('cruds.employeeList.fields.employeeid') }}</label>

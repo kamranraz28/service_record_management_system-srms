@@ -860,6 +860,43 @@
                             <span class="help-block">{{ trans('cruds.employeeList.fields.date_of_gazette_if_any_helper') }}</span>
                         </div>
 
+                        <div class="form-group">
+                            <label
+                                for="transfer_date">আত্মীকরণ/স্থানান্তরের তারিখ</label>
+                            <input
+                                class="form-control date {{ $errors->has('transfer_date') ? 'is-invalid' : '' }}"
+                                type="text" name="transfer_date" id="transfer_date"
+                                value="{{ old('transfer_date', '') }}">
+                            @if ($errors->has('transfer_date'))
+                                <div class="invalid-feedback">
+                                    {{ $errors->first('transfer_date') }}
+                                </div>
+                            @endif
+                        </div>
+
+
+
+                        <div class="form-group">
+                            <label for="transfer_order">
+                                @if (app()->getLocale() === 'bn')
+                                    আত্মীকরণ/স্থানান্তরের আদেশ সংযোজন
+                                @else
+                                    First Joining Letter Upload
+                                @endif
+                            </label>
+                            <div class="needsclick dropzone {{ $errors->has('transfer_order') ? 'is-invalid' : '' }}"
+                                id="transfer_order-dropzone">
+                            </div>
+                            @if ($errors->has('transfer_order'))
+                                <div class="invalid-feedback">
+                                    {{ $errors->first('transfer_order') }}
+                                </div>
+                            @endif
+
+                            <span
+                                class="help-block">{{ trans('cruds.employeeList.fields.fjoining_letter_helper') }}</span>
+                        </div>
+
 
 
                         <div class="form-group">
@@ -1462,6 +1499,58 @@
                     this.options.addedfile.call(this, file)
                     file.previewElement.classList.add('dz-complete')
                     $('form').append('<input type="hidden" name="fjoining_letter" value="' + file.file_name + '">')
+                    this.options.maxFiles = this.options.maxFiles - 1
+                @endif
+
+            },
+            error: function(file, response) {
+                if ($.type(response) === 'string') {
+                    var message = response //dropzone sends it's own error messages in string
+                } else {
+                    var message = response.errors.file
+                }
+                file.previewElement.classList.add('dz-error')
+                _ref = file.previewElement.querySelectorAll('[data-dz-errormessage]')
+                _results = []
+                for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+                    node = _ref[_i]
+                    _results.push(node.textContent = message)
+                }
+
+                return _results
+            }
+        }
+    </script>
+
+    <script>
+        Dropzone.options.transferOrderDropzone = {
+            url: '{{ route('admin.employee-lists.storeMedia') }}',
+            maxFilesize: 2, // MB
+            maxFiles: 1,
+            addRemoveLinks: true,
+            headers: {
+                'X-CSRF-TOKEN': "{{ csrf_token() }}"
+            },
+            params: {
+                size: 2
+            },
+            success: function(file, response) {
+                $('form').find('input[name="transfer_order"]').remove()
+                $('form').append('<input type="hidden" name="transfer_order" value="' + response.name + '">')
+            },
+            removedfile: function(file) {
+                file.previewElement.remove()
+                if (file.status !== 'error') {
+                    $('form').find('input[name="transfer_order"]').remove()
+                    this.options.maxFiles = this.options.maxFiles + 1
+                }
+            },
+            init: function() {
+                @if (isset($employeeList) && $employeeList->transfer_order)
+                    var file = {!! json_encode($employeeList->transfer_order) !!}
+                    this.options.addedfile.call(this, file)
+                    file.previewElement.classList.add('dz-complete')
+                    $('form').append('<input type="hidden" name="transfer_order" value="' + file.file_name + '">')
                     this.options.maxFiles = this.options.maxFiles - 1
                 @endif
 

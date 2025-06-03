@@ -188,6 +188,15 @@
             </div>
         @endif
 
+        @if ($institution == 'Others')
+            <div class="form-group">
+                <label for="other_institution"> প্রতিষ্ঠানের নাম</label>
+                <input type="text" class="form-control" name="other_institution" id="other_institution"
+                    aria-describedby="helpId" placeholder="" />
+
+            </div>
+        @endif
+
         @if ($fsit == 'FSTI')
             <div class="form-group">
                 <label class="required" for="posting_in_circle">{{ trans('global.fsti') }}</label>

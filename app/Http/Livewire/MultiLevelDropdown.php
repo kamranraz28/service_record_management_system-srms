@@ -14,10 +14,10 @@ use App\Models\OfficeUnit;
 class MultiLevelDropdown extends Component
 {
     public $selectedLevel1;
-    
+
     public $selectedValue;
-    public $selectedLevel2; 
-    public $range; 
+    public $selectedLevel2;
+    public $range;
     public $selectedValue2;
     public $onSelctDivision;
     public $onSelctDivisionmodel;
@@ -32,7 +32,7 @@ class MultiLevelDropdown extends Component
     public $fsit;
     public $division;
     public $circlelistid;
-    
+
 
 
 
@@ -51,7 +51,7 @@ class MultiLevelDropdown extends Component
     public function onSelectChange($value)
     {
         $this->selectedValue = $value;
-        $this->selectedLevel2 ='0'; 
+        $this->selectedLevel2 ='0';
         $this->selectedValue2 ='0';
         $this->onSelctDivision ='0';
         $this->onSelctDivisionmodel ='0';
@@ -68,7 +68,7 @@ class MultiLevelDropdown extends Component
     {
         // Update the selectedValue property with the selected value
         $this->selectedValue2 = $value;
-          
+
         //   if ($value == 'Division') {
         //     // Example: Fetch options for Level 2 from a model where level_1_id is $value
         //     $this->optionsLevel2 = Division::where('level_1_id', $value)->get();
@@ -82,44 +82,44 @@ class MultiLevelDropdown extends Component
         $this->division = ForestDivision::where('forest_state_id',$value)->get();
     }
     public function onSelctDivision($value)
-    {       
-        $this->onSelctDivision = $value;  
+    {
+        $this->onSelctDivision = $value;
         $this->range = ForestRange::where('forest_division_id',$value)->get();
-       
+
     }
     public function onducusionRange($value)
     {
-        $this->onSelctducusionRange = $value;         
-       
+        $this->onSelctducusionRange = $value;
+
     }
     public function onbeatSFPCCamp($value)
     {
         $this->beatSFPCCamp= $value;
-        $this->rangeForbeat = $value;          
+        $this->rangeForbeat = $value;
     }
-    
+
     public function onbeat($value)
     {
-        $this->beat = $value; 
-        $this->beatList = ForestBeat::where('forest_range_id',$value)->get();                
-       
+        $this->beat = $value;
+        $this->beatList = ForestBeat::where('forest_range_id',$value)->get();
+
     }
     public function oninstitution($value)
     {
-        $this->institution = $value; 
-        //$this->beatList = ForestBeat::where('forest_range_id',$value)->get();                
-       
+        $this->institution = $value;
+        //$this->beatList = ForestBeat::where('forest_range_id',$value)->get();
+
     }
     public function oninstitutionother($value)
     {
-        $this->institution = $value; 
-        //$this->beatList = ForestBeat::where('forest_range_id',$value)->get();                
-       
+        $this->institution = $value;
+        //$this->beatList = ForestBeat::where('forest_range_id',$value)->get();
+
     }
     public function onfsit($value)
     {
-        $this->fsit = $value; 
-        //$this->beatList = ForestBeat::where('forest_range_id',$value)->get();                
-       
+        $this->fsit = $value;
+        //$this->beatList = ForestBeat::where('forest_range_id',$value)->get();
+
     }
 }

@@ -55,6 +55,8 @@ class JobHistory extends Model implements HasMedia
         'updated_at',
         'deleted_at',
 		'comment',
+        'other_institution',
+
     ];
 
     protected function serializeDate(DateTimeInterface $date)

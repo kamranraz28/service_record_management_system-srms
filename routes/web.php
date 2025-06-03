@@ -55,7 +55,7 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'namespace' => 'Admin', 'mi
 	Route::get('seniority_list_report', [EmployeeListController::class,'seniority_list_report'])->name('seniority_list_report');
 	Route::get('seniority_list_report_download', [EmployeeListController::class,'seniority_list_report_download'])->name('seniority_list_report_download');
 
-    Route::post('seniority_list_designation_report_download', [EmployeeListController::class, 'downloadSeniorityListDesignation'])->name('downloadSeniorityListDesignation');
+    Route::post('seniority_list_designation_report_download', [EmployeeListController::class, 'downloadSeniorityListDesignationExcel'])->name('downloadSeniorityListDesignation');
 
     Route::post('search-designation-three', [EmployeeListController::class,'search_designation_three'])->name('search_designation_three');
 

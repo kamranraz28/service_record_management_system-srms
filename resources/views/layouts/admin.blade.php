@@ -48,6 +48,8 @@
     <link href="{{ asset('assets/css/semi-dark.css') }}" rel="stylesheet">
     <link href="{{ asset('assets/css/bordered-theme.css') }}" rel="stylesheet">
     <link href="{{ asset('assets/css/responsive.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" />
+
     <style>
         /* .dropzone {
             min-height: 40px !important;
