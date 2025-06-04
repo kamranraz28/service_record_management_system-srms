@@ -34,6 +34,7 @@ use App\Models\User;
 use App\Models\ForestDivision;
 use App\Models\ForestState;
 use App\Models\TransferLog;
+use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Facades\Excel;
 use PhpOffice\PhpSpreadsheet\Spreadsheet;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
@@ -3278,6 +3279,311 @@ class EmployeeListController extends Controller
 
         return redirect()->back()->with('success', 'Selected changes have been approved and applied.');
     }
+
+   // Controller Method
+    public function office_wise_entry_report()
+{
+    // Get counts grouped by created_by
+    $userCounts = EmployeeList::select('created_by', \DB::raw('COUNT(*) as total'))
+        ->where('approve', 'Approved')
+        ->where('deleted_at', null)
+        ->groupBy('created_by')
+        ->get();
+
+    $userIds = $userCounts->pluck('created_by')->unique();
+
+    // Load users with divisions and forest state relation
+    $users = \App\Models\User::with(['division.forest_state'])
+        ->whereIn('id', $userIds)
+        ->get()
+        ->keyBy('id');
+
+    // Also get circle-only users or users without division
+    // (optional if needed)
+
+    // Prepare arrays to hold entries:
+    // forestStates[forest_state_id] = ['name' => ..., 'count' => 0]
+    // divisions[forest_state_id][division_id] = ['name' => ..., 'count' => 0]
+
+    $forestStates = [];
+    $divisions = [];
+
+    foreach ($userCounts as $item) {
+        $user = $users->get($item->created_by);
+        if (!$user) continue;
+
+        $count = $item->total;
+        $division = $user->division;
+        $forestState = $division ? $division->forest_state : null;
+        $forestStateId = $forestState ? $forestState->id : 0;
+        $forestStateName = $forestState ? $forestState->name_bn : 'অজানা বন অঞ্চল';
+
+        // Assume users can have direct forest_state entry if division is null or division with forest state
+
+        // Case 1: User has no division but has forest_state_id?
+        // (If your User model has forest_state_id directly, otherwise ignore)
+
+        // Since only division has forest_state relation in your model,
+        // if no division, ignore user from report here (or assign to 'অজানা বন অঞ্চল')
+
+        if (!$division) {
+            // Skip users with no division (or assign to forestStateId=0 if you want)
+            continue;
+        }
+
+        // We need to distinguish entries **directly for the forest state** vs entries for divisions.
+
+        // Since only divisions have forest_state,
+        // let's treat entries from users with division that matches forest state as division entries.
+
+        // But if you want to count users assigned to the forest state itself (e.g., users with no division but with forest_state)
+        // You must fetch and use that data differently.
+
+        // So for now:
+        // - Count entries under divisions grouped by forest_state
+        // - For Forest State entries (without division), you need a separate query or logic.
+
+        // So let's accumulate division counts by forest_state and division
+        if (!isset($divisions[$forestStateId])) {
+            $divisions[$forestStateId] = [];
+        }
+        if (!isset($divisions[$forestStateId][$division->id])) {
+            $divisions[$forestStateId][$division->id] = [
+                'division_name' => $division->name_bn,
+                'count' => 0,
+            ];
+        }
+        $divisions[$forestStateId][$division->id]['count'] += $count;
+    }
+
+    // Now get Forest State direct entries separately:
+    // Let's get all user ids with no division but maybe have forest_state_id on user model
+    // Assuming your User has forest_state_id field
+    $forestStateEntries = EmployeeList::selectRaw('users.forest_circle_id, COUNT(*) as total')
+        ->join('users', 'employee_lists.created_by', '=', 'users.id')
+        ->where('employee_lists.approve', 'Approved')
+        ->whereNull('users.forest_division_id') // no division
+        ->groupBy('users.forest_circle_id')
+        ->get();
+
+    // Build forestStates with counts
+    foreach ($forestStateEntries as $entry) {
+        $fsId = $entry->forest_circle_id ?? 0;
+        $fsName = 'অজানা বন অঞ্চল';
+
+        if ($fsId !== 0) {
+            $fs = \App\Models\ForestState::find($fsId);
+            if ($fs) {
+                $fsName = $fs->name_bn;
+            }
+        }
+
+        $forestStates[$fsId] = [
+            'forest_state_name' => $fsName,
+            'count' => $entry->total,
+        ];
+    }
+
+    // Also add any forest_state ids present in divisions but missing from forestStates array
+    foreach ($divisions as $fsId => $divs) {
+        if (!isset($forestStates[$fsId])) {
+            $fs = \App\Models\ForestState::find($fsId);
+            $forestStates[$fsId] = [
+                'forest_state_name' => $fs ? $fs->name_bn : 'অজানা বন অঞ্চল',
+                'count' => 0,
+            ];
+        }
+    }
+
+    // Sort forestStates by name
+    uasort($forestStates, fn($a, $b) => strcmp($a['forest_state_name'], $b['forest_state_name']));
+
+    // Sort divisions by division name
+    foreach ($divisions as &$divList) {
+        uasort($divList, fn($a, $b) => strcmp($a['division_name'], $b['division_name']));
+    }
+    unset($divList);
+
+    // Prepare final list for view
+    $reportList = [];
+    foreach ($forestStates as $fsId => $fsData) {
+        $reportList[] = (object)[
+            'type' => 'forest_state',
+            'office' => $fsData['forest_state_name'],
+            'count' => $fsData['count'],
+        ];
+
+        if (isset($divisions[$fsId])) {
+            foreach ($divisions[$fsId] as $division) {
+                $reportList[] = (object)[
+                    'type' => 'division',
+                    'office' => $division['division_name'],
+                    'count' => $division['count'],
+                ];
+            }
+        }
+    }
+
+    return view('admin.employeeLists.office_wise_entry_report', compact('reportList'));
+
+}
+
+public function office_wise_entry_report_pdf()
+{
+    // Get counts grouped by created_by
+    $userCounts = EmployeeList::select('created_by', \DB::raw('COUNT(*) as total'))
+        ->where('approve', 'Approved')
+        ->where('deleted_at', null)
+        ->groupBy('created_by')
+        ->get();
+
+    $userIds = $userCounts->pluck('created_by')->unique();
+
+    // Load users with divisions and forest state relation
+    $users = \App\Models\User::with(['division.forest_state'])
+        ->whereIn('id', $userIds)
+        ->get()
+        ->keyBy('id');
+
+    // Also get circle-only users or users without division
+    // (optional if needed)
+
+    // Prepare arrays to hold entries:
+    // forestStates[forest_state_id] = ['name' => ..., 'count' => 0]
+    // divisions[forest_state_id][division_id] = ['name' => ..., 'count' => 0]
+
+    $forestStates = [];
+    $divisions = [];
+
+    foreach ($userCounts as $item) {
+        $user = $users->get($item->created_by);
+        if (!$user) continue;
+
+        $count = $item->total;
+        $division = $user->division;
+        $forestState = $division ? $division->forest_state : null;
+        $forestStateId = $forestState ? $forestState->id : 0;
+        $forestStateName = $forestState ? $forestState->name_bn : 'অজানা বন অঞ্চল';
+
+        // Assume users can have direct forest_state entry if division is null or division with forest state
+
+        // Case 1: User has no division but has forest_state_id?
+        // (If your User model has forest_state_id directly, otherwise ignore)
+
+        // Since only division has forest_state relation in your model,
+        // if no division, ignore user from report here (or assign to 'অজানা বন অঞ্চল')
+
+        if (!$division) {
+            // Skip users with no division (or assign to forestStateId=0 if you want)
+            continue;
+        }
+
+        // We need to distinguish entries **directly for the forest state** vs entries for divisions.
+
+        // Since only divisions have forest_state,
+        // let's treat entries from users with division that matches forest state as division entries.
+
+        // But if you want to count users assigned to the forest state itself (e.g., users with no division but with forest_state)
+        // You must fetch and use that data differently.
+
+        // So for now:
+        // - Count entries under divisions grouped by forest_state
+        // - For Forest State entries (without division), you need a separate query or logic.
+
+        // So let's accumulate division counts by forest_state and division
+        if (!isset($divisions[$forestStateId])) {
+            $divisions[$forestStateId] = [];
+        }
+        if (!isset($divisions[$forestStateId][$division->id])) {
+            $divisions[$forestStateId][$division->id] = [
+                'division_name' => $division->name_bn,
+                'count' => 0,
+            ];
+        }
+        $divisions[$forestStateId][$division->id]['count'] += $count;
+    }
+
+    // Now get Forest State direct entries separately:
+    // Let's get all user ids with no division but maybe have forest_state_id on user model
+    // Assuming your User has forest_state_id field
+    $forestStateEntries = EmployeeList::selectRaw('users.forest_circle_id, COUNT(*) as total')
+        ->join('users', 'employee_lists.created_by', '=', 'users.id')
+        ->where('employee_lists.approve', 'Approved')
+        ->whereNull('users.forest_division_id') // no division
+        ->groupBy('users.forest_circle_id')
+        ->get();
+
+    // Build forestStates with counts
+    foreach ($forestStateEntries as $entry) {
+        $fsId = $entry->forest_circle_id ?? 0;
+        $fsName = 'অজানা বন অঞ্চল';
+
+        if ($fsId !== 0) {
+            $fs = \App\Models\ForestState::find($fsId);
+            if ($fs) {
+                $fsName = $fs->name_bn;
+            }
+        }
+
+        $forestStates[$fsId] = [
+            'forest_state_name' => $fsName,
+            'count' => $entry->total,
+        ];
+    }
+
+    // Also add any forest_state ids present in divisions but missing from forestStates array
+    foreach ($divisions as $fsId => $divs) {
+        if (!isset($forestStates[$fsId])) {
+            $fs = \App\Models\ForestState::find($fsId);
+            $forestStates[$fsId] = [
+                'forest_state_name' => $fs ? $fs->name_bn : 'অজানা বন অঞ্চল',
+                'count' => 0,
+            ];
+        }
+    }
+
+    // Sort forestStates by name
+    uasort($forestStates, fn($a, $b) => strcmp($a['forest_state_name'], $b['forest_state_name']));
+
+    // Sort divisions by division name
+    foreach ($divisions as &$divList) {
+        uasort($divList, fn($a, $b) => strcmp($a['division_name'], $b['division_name']));
+    }
+    unset($divList);
+
+    // Prepare final list for view
+    $reportList = [];
+    foreach ($forestStates as $fsId => $fsData) {
+        $reportList[] = (object)[
+            'type' => 'forest_state',
+            'office' => $fsData['forest_state_name'],
+            'count' => $fsData['count'],
+        ];
+
+        if (isset($divisions[$fsId])) {
+            foreach ($divisions[$fsId] as $division) {
+                $reportList[] = (object)[
+                    'type' => 'division',
+                    'office' => $division['division_name'],
+                    'count' => $division['count'],
+                ];
+            }
+        }
+    }
+
+    $pdf = Pdf::loadView('admin.employeeLists.office_wise_entry_report_pdf', compact('reportList'), [], [
+        'margin_top' => 20,
+        'margin_bottom' => 15,
+        'margin_left' => 18,
+        'margin_right' => 18,
+        'format' => 'A4',
+        'orientation' => 'portrait',
+        'default_font_size' => 12,
+        'default_font' => 'nsikosh',
+    ]);
+
+    return $pdf->stream('অফিসভিত্তিক এন্ট্রি রিপোর্ট.pdf');
+}
 
 
 

@@ -957,11 +957,23 @@
                 </a>
                 <ul class="c-sidebar-nav-dropdown-items">
                     @can('dfo')
+                    <li class="c-sidebar-nav-item">
+                            <a href="{{ route('admin.office_wise_entry_report') }}"
+                                class="c-sidebar-nav-link {{ request()->is('admin/office_wise_entry_report') || request()->is('admin/office_wise_entry_report/*') ? 'c-active' : '' }}">
+                                <i class="fa-fw fas fa-book c-sidebar-nav-icon">
+
+                                </i>
+                                @if (app()->getLocale() === 'bn')
+                        অফিস ভিত্তিক এন্ট্রির তালিকা
+                        @else
+						Office Wise Entry List
+                        @endif
+                            </a>
+                        </li>
                         <li class="c-sidebar-nav-item">
                             <a href="{{ route('admin.three_months_report') }}"
                                 class="c-sidebar-nav-link {{ request()->is('admin/three_months_report') || request()->is('admin/three_months_report/*') ? 'c-active' : '' }}">
                                 <i class="fa-fw fas fa-book c-sidebar-nav-icon">
-
                                 </i>
                                 @if (app()->getLocale() === 'bn')
                         ত্রৈমাসিক প্রতিবেদন

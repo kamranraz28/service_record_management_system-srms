@@ -51,6 +51,9 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'namespace' => 'Admin', 'mi
     Route::post('three_months_circle_office_report_download', [EmployeeListController::class, 'downloadThreeMonthsCircleOffice'])->name('downloadThreeMonthsCircleOffice');
 
 	Route::get('three_months_report', [EmployeeListController::class,'three_months_report'])->name('three_months_report');
+    Route::get('office_wise_entry_report', [EmployeeListController::class,'office_wise_entry_report'])->name('office_wise_entry_report');
+    Route::get('office_wise_entry_report_pdf', [EmployeeListController::class,'office_wise_entry_report_pdf'])->name('office_entry_report_pdf');
+
 	Route::get('three_months_report_download', [EmployeeListController::class,'downloadThreeMonthsReport'])->name('downloadThreeMonthsReport');
 	Route::get('seniority_list_report', [EmployeeListController::class,'seniority_list_report'])->name('seniority_list_report');
 	Route::get('seniority_list_report_download', [EmployeeListController::class,'seniority_list_report_download'])->name('seniority_list_report_download');
