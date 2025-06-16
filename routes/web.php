@@ -4,9 +4,8 @@
 use App\Http\Controllers\Admin\EmployeeListController;
 use App\Http\Controllers\Admin\AddressdetaileController;
 
-Route::get('/', function () {
-    return view('auth.login');
-})->name('home');
+Route::redirect('/', '/srms/login')->name('home');
+
 
 Route::get('/home', function () {
     if (session('status')) {
@@ -20,49 +19,59 @@ Auth::routes(['register' => false]);
 Route::get('dfo', [EmployeeListController::class,'dfo'])->name('dfo');
 Route::get('pending-change', [EmployeeListController::class,'pendingChange'])->name('pending-change');
 Route::post('/admin/changes/approve-multiple', [EmployeeListController::class, 'approveMultiple'])->name('changeApproval');
+
+Route::get('pending-review', [EmployeeListController::class,'pending_review'])->name('pending-review');
+
 Route::group(['prefix' => 'admin', 'as' => 'admin.', 'namespace' => 'Admin', 'middleware' => ['auth', '2fa']], function () {
 
     Route::get('add-employee', [EmployeeListController::class,'Commonemployeecreate'])->name('creatrmployee');
     Route::get('show-employee', [EmployeeListController::class,'commonemployeeshow'])->name('commonemployeeshow');
     Route::get('employee-data/{id}', [EmployeeListController::class,'employeedata'])->name('employeedata');
     Route::get('employee-pdf/{id}', [EmployeeListController::class,'employeedata_pdf'])->name('employeedata.pdf');
-    Route::get('employee-delete/{id}', [EmployeeListController::class,'employeedata_delete'])->name('employeedata.delete');
-    Route::post('search-retirement', [EmployeeListController::class,'search_retirement'])->name('search_retirement');
+	Route::get('employee-delete/{id}', [EmployeeListController::class,'employeedata_delete'])->name('employeedata.delete');
 
-    Route::post('search-employee', [EmployeeListController::class,'searchEmployee'])->name('searchEmployee');
+    Route::post('search-retirement', [EmployeeListController::class,'search_retirement'])->name('search_retirement');
+    Route::post('search-employee-transfer', [EmployeeListController::class,'search_employee_transfer'])->name('search_employee_transfer');
+    Route::post('search-employee-by-name', [EmployeeListController::class,'search_employee_by_name'])->name('search_employee_by_name');
+
+    Route::post('search-employee', [EmployeeListController::class,'search_employee'])->name('search_employee');
+    Route::post('search-designation', [EmployeeListController::class,'search_designation'])->name('search_designation');
+    Route::post('search-designation-three', [EmployeeListController::class,'search_designation_three'])->name('search_designation_three');
+
+    Route::post('search-district-three', [EmployeeListController::class,'search_district_three'])->name('search_district_three');
 
     Route::get('upcoming_retirement_list', [EmployeeListController::class,'upcoming_retirement_list'])->name('upcoming_retirement_list');
-    Route::get('entry_list', [EmployeeListController::class,'entry_list'])->name('entry_list');
+	Route::get('entry_list', [EmployeeListController::class,'entry_list'])->name('entry_list');
+
     Route::get('transfer', [EmployeeListController::class,'transfer'])->name('transfer');
     Route::get('transfer-list', [EmployeeListController::class,'transferList'])->name('transferList');
 
+    Route::get('exemption-list', [EmployeeListController::class,'exemptionList'])->name('exemptionList');
+
     Route::post('transfer_confirm/{id}', [EmployeeListController::class,'transferConfirm'])->name('transferConfirm');
+
+    Route::post('exemption_confirm/{id}', [EmployeeListController::class,'exemption_confirm'])->name('exemption_confirm');
 
     Route::post('/approve', [EmployeeListController::class, 'approve'])->name('employee.approve');
 
 	//Reports
-    Route::get('three_months_report_filtering', [EmployeeListController::class,'three_months_report_designation'])->name('three_months_report_designation');
-    Route::post('three_months_designation_report_download', [EmployeeListController::class, 'downloadThreeMonthsDesignation'])->name('downloadThreeMonthsDesignation');
-    Route::post('three_months_district_report_download', [EmployeeListController::class, 'downloadThreeMonthsDistrict'])->name('downloadThreeMonthsDistrict');
-    Route::post('three_months_quota_report_download', [EmployeeListController::class, 'downloadThreeMonthsQuota'])->name('downloadThreeMonthsQuota');
-    Route::post('three_months_circle_report_download', [EmployeeListController::class, 'downloadThreeMonthsCircle'])->name('downloadThreeMonthsCircle');
-    Route::post('three_months_division_report_download', [EmployeeListController::class, 'downloadThreeMonthsDivision'])->name('downloadThreeMonthsDivision');
-    Route::post('three_months_multiple_report_download', [EmployeeListController::class, 'downloadThreeMonthsMultiple'])->name('downloadThreeMonthsMultiple');
-    Route::post('three_months_circle_office_report_download', [EmployeeListController::class, 'downloadThreeMonthsCircleOffice'])->name('downloadThreeMonthsCircleOffice');
-
-	Route::get('three_months_report', [EmployeeListController::class,'three_months_report'])->name('three_months_report');
-    Route::get('office_wise_entry_report', [EmployeeListController::class,'office_wise_entry_report'])->name('office_wise_entry_report');
+	Route::get('office_wise_entry_report', [EmployeeListController::class,'office_wise_entry_report'])->name('office_wise_entry_report');
     Route::get('office_wise_entry_report_pdf', [EmployeeListController::class,'office_wise_entry_report_pdf'])->name('office_entry_report_pdf');
 
+	Route::get('three_months_report', [EmployeeListController::class,'three_months_report'])->name('three_months_report');
 	Route::get('three_months_report_download', [EmployeeListController::class,'downloadThreeMonthsReport'])->name('downloadThreeMonthsReport');
 	Route::get('seniority_list_report', [EmployeeListController::class,'seniority_list_report'])->name('seniority_list_report');
 	Route::get('seniority_list_report_download', [EmployeeListController::class,'seniority_list_report_download'])->name('seniority_list_report_download');
+        Route::post('seniority_list_designation_report_download', [EmployeeListController::class, 'downloadSeniorityListDesignation'])->name('downloadSeniorityListDesignation');
 
-    Route::post('seniority_list_designation_report_download', [EmployeeListController::class, 'downloadSeniorityListDesignationExcel'])->name('downloadSeniorityListDesignation');
-
-    Route::post('search-designation-three', [EmployeeListController::class,'search_designation_three'])->name('search_designation_three');
-
-    Route::post('search-district-three', [EmployeeListController::class,'search_district_three'])->name('search_district_three');
+	Route::get('three_months_report_filtering', [EmployeeListController::class,'three_months_report_designation'])->name('three_months_report_designation');
+ Route::post('three_months_designation_report_download', [EmployeeListController::class, 'downloadThreeMonthsDesignation'])->name('downloadThreeMonthsDesignation');
+    Route::post('three_months_district_report_download', [EmployeeListController::class, 'downloadThreeMonthsDistrict'])->name('downloadThreeMonthsDistrict');
+    Route::post('three_months_quota_report_download', [EmployeeListController::class, 'downloadThreeMonthsQuota'])->name('downloadThreeMonthsQuota');
+Route::post('three_months_circle_report_download', [EmployeeListController::class, 'downloadThreeMonthsCircle'])->name('downloadThreeMonthsCircle');
+    Route::post('three_months_division_report_download', [EmployeeListController::class, 'downloadThreeMonthsDivision'])->name('downloadThreeMonthsDivision');
+    Route::post('three_months_multiple_report_download', [EmployeeListController::class, 'downloadThreeMonthsMultiple'])->name('downloadThreeMonthsMultiple');
+    Route::post('three_months_circle_office_report_download', [EmployeeListController::class, 'downloadThreeMonthsCircleOffice'])->name('downloadThreeMonthsCircleOffice');
 
    Route::get('/', 'HomeController@index')->name('home');
     // Permissions
@@ -311,24 +320,22 @@ Route::get('admin/addressdetailes/present-address', [AddressdetaileController::c
     Route::post('acr-monitorings/ckmedia', 'AcrMonitoringController@storeCKEditorImages')->name('acr-monitorings.storeCKEditorImages');
     Route::resource('acr-monitorings', 'AcrMonitoringController');
 
-    // Police Verification
-    Route::delete('police-verification/destroy', 'PoliceVerificationController@massDestroy')->name('police-verification.massDestroy');
-    Route::post('police-verification/media', 'PoliceVerificationController@storeMedia')->name('police-verification.storeMedia');
-    Route::post('police-verification/ckmedia', 'PoliceVerificationController@storeCKEditorImages')->name('police-verification.storeCKEditorImages');
-    Route::resource('police-verification', 'PoliceVerificationController');
-
-    // Time Scale
+	// Time Scale
     Route::delete('time-scale/destroy', 'TimeScaleController@massDestroy')->name('time-scale.massDestroy');
     Route::post('time-scale/media', 'TimeScaleController@storeMedia')->name('time-scale.storeMedia');
     Route::post('time-scale/ckmedia', 'TimeScaleController@storeCKEditorImages')->name('time-scale.storeCKEditorImages');
     Route::resource('time-scale', 'TimeScaleController');
 
-    // Time Scale
+    // Other
     Route::delete('other/destroy', 'OtherController@massDestroy')->name('other.massDestroy');
     Route::post('other/media', 'OtherController@storeMedia')->name('other.storeMedia');
     Route::post('other/ckmedia', 'OtherController@storeCKEditorImages')->name('other.storeCKEditorImages');
     Route::resource('other', 'OtherController');
 
+Route::delete('police-verification/destroy', 'PoliceVerificationController@massDestroy')->name('police-verification.massDestroy');
+    Route::post('police-verification/media', 'PoliceVerificationController@storeMedia')->name('police-verification.storeMedia');
+    Route::post('police-verification/ckmedia', 'PoliceVerificationController@storeCKEditorImages')->name('police-verification.storeCKEditorImages');
+    Route::resource('police-verification', 'PoliceVerificationController');
     // Audit Logs
     Route::resource('audit-logs', 'AuditLogsController', ['except' => ['create', 'store', 'edit', 'update', 'destroy']]);
 
@@ -486,5 +493,9 @@ Route::group(['namespace' => 'Auth', 'middleware' => ['auth', '2fa']], function 
 
 Route::get('/user-approve/{id}', [EmployeeListController::class, 'approve'])->name('user.approve');
 Route::get('/user-send/{id}', [EmployeeListController::class, 'send'])->name('user.send');
+Route::get('/user-send-back/{id}', [EmployeeListController::class, 'send_back'])->name('user.send_back');
+
+Route::get('/final-approve/{id}', [EmployeeListController::class, 'final_approve'])->name('final_approve');
+Route::get('/exemption-cancel/{id}', [EmployeeListController::class, 'exemption_cancel'])->name('exemption_cancel');
 
 

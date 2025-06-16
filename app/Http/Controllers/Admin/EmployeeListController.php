@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers\Admin;
 
-use App\Models\Editlog;
 use Illuminate\Support\Facades\App;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Traits\MediaUploadingTrait;
@@ -34,22 +33,22 @@ use App\Models\User;
 use App\Models\ForestDivision;
 use App\Models\ForestState;
 use App\Models\TransferLog;
-use Illuminate\Support\Facades\DB;
-use Maatwebsite\Excel\Facades\Excel;
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use App\Models\ExemptionType;
+use App\Models\ExemptionLog;
+use App\Models\Editlog;
+
+
 
 
 use Gate;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Session;
 use Spatie\MediaLibrary\MediaCollections\Models\Media;
 use Symfony\Component\HttpFoundation\Response;
 use Yajra\DataTables\Facades\DataTables;
 use PDF;
 use Carbon\Carbon;
+use Session;
 
 
 
@@ -58,518 +57,205 @@ class EmployeeListController extends Controller
     use MediaUploadingTrait;
 
     public function index(Request $request)
-    {
-        $userId = Auth::id();
-        //dd($userId);
+{
+    $userId = Auth::id();
+    $employeeId = Session::get('id');  // Employee ID filter
+    $designationId = Session::get('designation_id');  // Designation filter
+    $name = Session::get('name');  // Name filter
+    $designations = Designation::all();
 
-        $id = Session::get('id');
-        // dd($id);
+    // Get user's office info
+    $userInfo = User::select('forest_circle_id', 'forest_division_id')
+                    ->find($userId);
 
-        $userInfo = User::select('forest_circle_id', 'forest_division_id')
-            ->where('id', $userId)
-            ->first();
-        $divisions = $userInfo->forest_division_id;
-        // dd($divisions);
-        $circles = $userInfo->forest_circle_id;
-        //dd($circles);
-
-
-
-        if ($circles !== null && $divisions == null) {
-            //dd('User');
-            $sameOfficeIds = User::select('id')
-                ->where('forest_circle_id', $circles)
-                ->pluck('id');
-            //dd($sameOfficeIds);
-
-            if ($id === null) {
-                $data = EmployeeList::with('designation')
-                    ->whereIn('created_by', $sameOfficeIds)
-                    ->where('approve', 'Approved')
-                    ->paginate(10);
-            } else {
-                $data = EmployeeList::with('designation')
-                    ->where('employeeid', $id)
-                    ->whereIn('created_by', $sameOfficeIds)
-                    ->where('approve', 'Approved')
-                    ->paginate(10);
-            }
-
-
-            $total = $data->total(); // `total()` gives the total number of results for the pagination
-
-            return view('admin.employeeLists.index', compact('data', 'total'));
-        } elseif ($circles == null && $divisions !== null) {
-            //dd('User');
-            $sameOfficeIds = User::select('id')
-                ->where('forest_division_id', $divisions)
-                ->pluck('id');
-            //dd($sameOfficeIds);
-
-            if ($id === null) {
-                $data = EmployeeList::with('designation')
-                    ->whereIn('created_by', $sameOfficeIds)
-                    ->where('approve', 'Approved')
-                    ->paginate(10);
-            } else {
-                $data = EmployeeList::with('designation')
-                    ->where('employeeid', $id)
-                    ->whereIn('created_by', $sameOfficeIds)
-                    ->where('approve', 'Approved')
-                    ->paginate(10);
-            }
-
-            $total = $data->total(); // `total()` gives the total number of results for the pagination
-
-            return view('admin.employeeLists.index', compact('data', 'total'));
-        } else {
-            //dd('Admin');
-
-
-            if ($id !== null) {
-                $data = EmployeeList::with('designation')
-                    ->where('employeeid', $id)
-                    ->where('approve', 'Approved')
-                    ->paginate(10);
-            } else {
-                $data = EmployeeList::with('designation')
-                    ->where('approve', 'Approved')
-                    ->paginate(10);
-            }
-
-            $total = $data->count();
-
-            return view('admin.employeeLists.index', compact('data', 'total'));
-        }
-    }
-
-
-    public function searchEmployee(Request $request)
-    {
-        $id = $request->input('id');
-
-
-        Session::put('id', $id);
-
-
-        return redirect()->route('admin.employee-lists.index');
-    }
-
-
-
-    public function waitingList()
-    {
-
-        $userId = Auth::id();
-
-        $data = EmployeeList::with('designation')
-            ->where('created_by', $userId)
-            ->whereNull('approve')
-            ->paginate(10);
-
-        $total = count($data);
-        //dd($total);
-
-        return view('admin.employeeLists.waiting-list', compact('data', 'total'));
-    }
-
-    public function dfo()
-    {
-        $userId = Auth::id();
-
-        $division = User::where('id', $userId)
-            ->pluck('forest_division_id')
-            ->first();
-        $circle = User::where('id', $userId)
-            ->pluck('forest_circle_id')
-            ->first();
-
-        if ($division !== null && $circle == null) {
-            $user_ids = User::where('forest_division_id', $division)
-                ->pluck('id');
-            // dd($user_ids);
-        } elseif ($division == null && $circle !== null) {
-            $user_ids = User::where('forest_circle_id', $circle)
-                ->pluck('id');
-            // dd($user_ids);
-
-        } else {
-            $user_ids = User::pluck('id');
-            // dd($user_ids);
-        }
-
-        $data = EmployeeList::with('jobhistories.designation')
-            ->where('approve', 'pending')
-            ->whereIn('created_by', $user_ids)
-            ->paginate(10);
-        // dd($data);
-
-        $total = $data->total();
-        // dd($total);
-
-        return view('admin.employeeLists.dfo-review-list', compact('data', 'total'));
-
-
-
-
-    }
-
-    public function transfer()
-    {
-        $userId = Auth::id();
-        //dd($userId);
-
-        $userInfo = User::select('forest_circle_id', 'forest_division_id')
-            ->where('id', $userId)
-            ->first();
-        $divisions = $userInfo->forest_division_id;
-        // dd($divisions);
-        $circles = $userInfo->forest_circle_id;
-        //dd($circles);
-        $locale = App::getLocale();
-        $columname = $locale === 'bn' ? 'name_bn' : 'name_en';
-
-
-
-
-        if ($circles !== null && $divisions == null) {
-            // dd('User');
-            $sameOfficeIds = User::select('id')
-                ->where('forest_circle_id', $circles)
-                ->pluck('id');
-            //dd($sameOfficeIds);
-
-            // Now use whereIn to filter employees created by those IDs
-            $data = EmployeeList::with('designation')
-                ->whereIn('created_by', $sameOfficeIds)
+    // Build base query
+    $query = EmployeeList::with('designation')
                 ->where('approve', 'Approved')
-                ->paginate(10);
+                ->where('status', 1);
 
-            $total = $data->total(); // `total()` gives the total number of results for the pagination
-
-            $divisionList = ForestDivision::pluck($columname, 'id')->prepend(trans('global.pleaseSelect'), '');
-
-            $circleList = ForestState::pluck($columname, 'id')->prepend(trans('global.pleaseSelect'), '');
-
-            return view('admin.employeeLists.transfer', compact('divisionList', 'circleList', 'data', 'total'));
-        } elseif ($circles == null && $divisions !== null) {
-            // dd('User');
-            $sameOfficeIds = User::select('id')
-                ->where('forest_division_id', $divisions)
-                ->pluck('id');
-            //dd($sameOfficeIds);
-
-            // Now use whereIn to filter employees created by those IDs
-            $data = EmployeeList::with('designation')
-                ->whereIn('created_by', $sameOfficeIds)
-                ->where('approve', 'Approved')
-                ->paginate(10);
-
-            $total = $data->total(); // `total()` gives the total number of results for the pagination
-
-            $divisionList = ForestDivision::pluck($columname, 'id')->prepend(trans('global.pleaseSelect'), '');
-
-            $circleList = ForestState::pluck($columname, 'id')->prepend(trans('global.pleaseSelect'), '');
-            return view('admin.employeeLists.transfer', compact('divisionList', 'circleList', 'data', 'total'));
-        } else {
-            // dd('Admin');
-            $data = EmployeeList::with('designation')
-                ->where('approve', 'Approved')
-                ->paginate(10);
-
-            $total = $data->count();
-
-            $divisionList = ForestDivision::pluck($columname, 'id')->prepend(trans('global.pleaseSelect'), '');
-
-            $circleList = ForestState::pluck($columname, 'id')->prepend(trans('global.pleaseSelect'), '');
-
-            return view('admin.employeeLists.transfer', compact('divisionList', 'circleList', 'data', 'total'));
-        }
+    // Filter based on user's office scope
+    if ($userInfo->forest_circle_id && !$userInfo->forest_division_id) {
+        $userIds = User::where('forest_circle_id', $userInfo->forest_circle_id)->pluck('id');
+        $query->whereIn('created_by', $userIds);
+    } elseif (!$userInfo->forest_circle_id && $userInfo->forest_division_id) {
+        $userIds = User::where('forest_division_id', $userInfo->forest_division_id)->pluck('id');
+        $query->whereIn('created_by', $userIds);
     }
 
-    public function transferConfirm(Request $request, $id)
-    {
-        //dd($id);
-        //dd($request->all());
-
-        $division_id = $request->division_id;
-        //dd($division_id);
-        $circle_id = $request->circle_id;
-        //dd($circle_id);
-
-        $old_user = EmployeeList::where('id', $id)->first();
-        //dd($old_user);
-        $old_user_id = $old_user->created_by;
-        //dd($old_user_id);
-
-        if ($division_id == null && $circle_id !== null) {
-            $user = User::where('forest_circle_id', $circle_id)->first();
-            //dd($user);
-
-            $user_id = $user->id;
-
-            $log = new TransferLog();
-
-            $log->employee_id = $id;
-            $log->previous_office_id = $old_user_id;
-            $log->division_id = null;
-            $log->circle_id = $user_id;
-            $log->comment = $request->comment;
-
-            $log->save();
-        } elseif ($division_id !== null && $circle_id == null) {
-            $user = User::where('forest_division_id', $division_id)->first();
-            //dd($user);
-            $user_id = $user->id;
-
-            $log = new TransferLog();
-
-            $log->employee_id = $id;
-            $log->previous_office_id = $old_user_id;
-            $log->division_id = $user_id;
-            $log->circle_id = null;
-            $log->comment = $request->comment;
-
-            $log->save();
-        } else {
-            return redirect()->back()->with('error', 'সার্কেল অথবা ডিভিশন যেকোন একটি নির্বাচন করতে হবে।');
-        }
-
-
-
-        EmployeeList::where('id', $id)->update(['created_by' => $user_id]);
-
-
-
-        return redirect()->back()->with('success', 'স্থানান্তরটি সফলভাবে সম্পন্ন হয়েছে।');
-
+    // Apply optional filters
+    if (!empty($employeeId)) {
+        $query->where('employeeid', $employeeId);
     }
 
-    public function transferList()
-    {
-        $userId = Auth::id();
-        //dd($userId);
-
-        $userInfo = User::select('forest_circle_id', 'forest_division_id')
-            ->where('id', $userId)
-            ->first();
-        $divisions = $userInfo->forest_division_id;
-        // dd($divisions);
-        $circles = $userInfo->forest_circle_id;
-        //dd($circles);
-
-
-
-        if ($circles !== null && $divisions == null) {
-            //dd('User');
-            $sameOfficeIds = User::select('id')
-                ->where('forest_circle_id', $circles)
-                ->pluck('id');
-            //dd($sameOfficeIds);
-
-            // Now use whereIn to filter employees created by those IDs
-            $data = TransferLog::whereIn('previous_office_id', $sameOfficeIds)
-                ->paginate(10);
-
-            $total = $data->total(); // `total()` gives the total number of results for the pagination
-
-            return view('admin.employeeLists.transferList', compact('data', 'total'));
-        } elseif ($circles == null && $divisions !== null) {
-            //dd('User');
-            $sameOfficeIds = User::select('id')
-                ->where('forest_division_id', $divisions)
-                ->pluck('id');
-            //dd($sameOfficeIds);
-
-            // Now use whereIn to filter employees created by those IDs
-            $data = TransferLog::whereIn('previous_office_id', $sameOfficeIds)
-                ->paginate(10);
-
-            $total = $data->total(); // `total()` gives the total number of results for the pagination
-
-            return view('admin.employeeLists.transferList', compact('data', 'total'));
-        } else {
-            //dd('Admin');
-            $data = TransferLog::paginate(10);
-
-            $total = $data->count();
-
-            return view('admin.employeeLists.transferList', compact('data', 'total'));
-        }
+    if (!empty($designationId)) {
+        $query->where('designation_id', $designationId);
     }
 
-
-    public function three_months_report()
-    {
-        $userId = Auth::id();
-        //dd($userId);
-        $threeMonthsReport = [];
-
-        $userInfo = User::select('forest_circle_id', 'forest_division_id')
-            ->where('id', $userId)
-            ->first();
-        $divisions = $userInfo->forest_division_id;
-        // dd($divisions);
-        $circles = $userInfo->forest_circle_id;
-        //dd($circles);
-        $locale = App::getLocale();
-        $columname = $locale === 'bn' ? 'name_bn' : 'name_en';
-
-
-
-
-        if ($circles !== null && $divisions == null) {
-            // dd('User');
-            $sameOfficeIds = User::select('id')
-                ->where('forest_circle_id', $circles)
-                ->pluck('id');
-            //dd($sameOfficeIds);
-
-            // Now use whereIn to filter employees created by those IDs
-            $employeeList = EmployeeList::whereIn('created_by', $sameOfficeIds)
-                ->where('approve', 'Approved')
-                ->paginate(10);
-        } elseif ($circles == null && $divisions !== null) {
-            // dd('User');
-            $sameOfficeIds = User::select('id')
-                ->where('forest_division_id', $divisions)
-                ->pluck('id');
-            //dd($sameOfficeIds);
-
-            // Now use whereIn to filter employees created by those IDs
-            $employeeList = EmployeeList::whereIn('created_by', $sameOfficeIds)
-                ->where('approve', 'Approved')
-                ->paginate(10);
-        } else {
-            $employeeList = EmployeeList::where('approve', 'approved')->get();
-        }
-
-
-
-
-
-        foreach ($employeeList as $employee) {
-
-            $jobHistories = [];
-            $trainingHistories = [];
-            $educationHistories = [];
-            $mamlaHistories = [];
-
-            // Process job histories
-            foreach ($employee->allJob as $job) {
-                if ($job->circle_list_id !== null && $job->division_list_id == null) {
-                    $workPlace_bn = $job->circle_list->name_bn ?? '';
-                    $workPlace_en = $job->circle_list->name_en ?? '';
-                } elseif ($job->division_list_id !== null && $job->circle_list_id !== null) {
-                    $workPlace_bn = $job->division_list->name_bn ?? '';
-                    $workPlace_en = $job->division_list->name_en ?? '';
-                } elseif ($job->level_2 !== null) {
-                    $workPlace_bn = $job->level_2 ?? '';
-                    $workPlace_en = $job->level_2 ?? '';
-                } elseif ($job->academy_type !== null) {
-                    $workPlace_bn = $job->academy_type ?? '';
-                    $workPlace_en = $job->academy_type ?? '';
-                } else {
-                    $workPlace_bn = $job->institutename ?? '';
-                    $workPlace_en = $job->institutename ?? '';
-                }
-
-                $jobHistories[] = [
-                    'work_place_bn' => $workPlace_bn,
-                    'work_place_en' => $workPlace_en,
-                    'start_date' => $job->joining_date ?? '',
-                    'end_date' => $job->release_date ?? '',
-                ];
-            }
-
-            // Process training histories
-            foreach ($employee->training_list as $training) {
-                $trainingHistories[] = [
-                    'training_name' => $training->training_name ?? '',
-                ];
-            }
-
-            // Process education histories
-            foreach ($employee->educationHistory as $education) {
-                $educationHistories[] = [
-                    'education_name_bn' => $education->name_of_exam->name_bn ?? '',
-                    'education_name_en' => $education->name_of_exam->name_en ?? '',
-                ];
-            }
-
-            // Process mamla histories
-            foreach ($employee->mamlaHistory as $mamla) {
-                $mamlaHistories[] = [
-                    'mamla_name_bn' => $mamla->name_bn ?? '',
-                    'mamla_name_en' => $mamla->name_en ?? '',
-                    'mamla_start' => $mamla->mamla_start ?? '',
-                    'mamla_end' => $mamla->mamla_end ?? '',
-                    'comment' => $mamla->remzrk ?? '',
-                ];
-            }
-
-            // Calculate total job duration
-            $totalDuration = Carbon::now()->diff(Carbon::createFromFormat('d/m/Y', $employee->fjoining_date));
-
-            $total_job_bn = sprintf('%d বছর, %d মাস, %d দিন', $totalDuration->y, $totalDuration->m, $totalDuration->d);
-            $total_job_en = sprintf('%d years, %d months, %d days', $totalDuration->y, $totalDuration->m, $totalDuration->d);
-
-            // Add all the details to the report
-            $threeMonthsReport[] = [
-                'employee_name_bn' => $employee->fullname_bn ?? '',
-                'employee_name_en' => $employee->fullname_en ?? '',
-                'designation_bn' => $employee->designation->name_bn ?? '',
-                'designation_en' => $employee->designation->name_en ?? '',
-                'grade_bn' => $employee->grade->name_bn ?? '',
-                'grade_en' => $employee->grade->name_en ?? '',
-                'promotion_grade_bn' => $employee->promotion->grade->name_bn ?? '',
-                'promotion_grade_en' => $employee->promotion->grade->name_en ?? '',
-                'dob' => $employee->date_of_birth ?? '',
-                'home_district_bn' => $employee->home_district->name_bn ?? '',
-                'home_district_en' => $employee->home_district->name_en ?? '',
-                'permanent_address_bn' => $employee->permanent->thana_upazila->name_bn ?? '',
-                'permanent_address_en' => $employee->permanent->thana_upazila->name_en ?? '',
-                'present_address_bn' => $employee->present->thana_upazila->name_bn ?? '',
-                'present_address_en' => $employee->present->thana_upazila->name_en ?? '',
-                'fjoining_date' => $employee->fjoining_date ?? '',
-                'promotion_date' => $employee->promotion->go_issue_date ?? '',
-                'circle_name_bn' => $employee->jobhistory->circle_list->name_bn ?? '',
-                'circle_name_en' => $employee->jobhistory->circle_list->name_en ?? '',
-                'office_name' => $employee->jobhistory->level_2 ?? '',
-                'joining_date' => $employee->jobhistory->joining_date ?? '',
-                'division_name_bn' => $employee->jobhistory->division_list->name_bn ?? '',
-                'division_name_en' => $employee->jobhistory->division_list->name_en ?? '',
-                'range_name_bn' => $employee->jobhistory->range_list->name_bn ?? '',
-                'range_name_en' => $employee->jobhistory->range_list->name_en ?? '',
-                'beat_name_bn' => $employee->jobhistory->beat_list->name_bn ?? '',
-                'beat_name_en' => $employee->jobhistory->beat_list->name_en ?? '',
-                'revenue_id' => $employee->projectrevenue_id ?? '',
-                'project_id' => $employee->project_id ?? '',
-                'project_name_bn' => $employee->project->name_bn ?? '',
-                'project_name_en' => $employee->project->name_en ?? '',
-                'job_histories' => $jobHistories,
-                'total_job_bn' => $total_job_bn,
-                'total_job_en' => $total_job_en,
-                'quota_bn' => $employee->quota->name_bn ?? '',
-                'quota_en' => $employee->quota->name_en ?? '',
-                'relation_bn' => $employee->freedomfighter->name_bn ?? '',
-                'relation_en' => $employee->freedomfighter->name_en ?? '',
-                'fighter_name' => $employee->freedomfighter_name ?? '',
-                'fighter_address' => $employee->freedomfighter_address ?? '',
-                'fighter_number' => $employee->freedomfighter_go ?? '',
-                'training_histories' => $trainingHistories,
-                'education_histories' => $educationHistories,
-                'mamla_histories' => $mamlaHistories,
-                'prl_date' => $employee->prl_date ?? '',
-            ];
-        }
-
-        return view('admin.employeeLists.threeMonthsReport', compact('userId', 'threeMonthsReport'));
+    if (!empty($name)) {
+        $query->where(function ($q) use ($name) {
+            $q->where('fullname_bn', $name)
+              ->orWhere('fullname_en', $name);
+        });
     }
 
+    // Fetch data
+    $total = $query->count();
+    $data = $query->paginate(10);
+
+    return view('admin.employeeLists.index', compact('data', 'total', 'designations'));
+}
 
 
-    public function three_months_report_designation()
+
+
+
+	public function search_employee(Request $request)
+{
+    // Save the employee ID in session
+    Session::put('id', $request->input('id'));
+
+    // Clear any previous designation filter if present
+    Session::forget('designation_id');
+
+    return redirect()->route('admin.employee-lists.index');
+}
+
+public function search_employee_by_name(Request $request)
+{
+    // Save the employee ID in session
+    Session::put('name', $request->input('name'));
+
+    // Clear any previous designation filter if present
+    Session::forget('designation_id','id');
+
+    return redirect()->route('admin.employee-lists.index');
+}
+
+
+public function search_designation(Request $request)
+{
+    // Save the array of designation IDs in session
+    $designationIds = $request->input('designation_id', []); // default to empty array if none
+
+    // Make sure it's always an array
+    if (!is_array($designationIds)) {
+        $designationIds = [$designationIds];
+    }
+
+    Session::put('designation_id', $designationIds);
+
+    // Clear previous employee id and name filters
+    Session::forget(['id', 'name']);
+
+    return redirect()->route('admin.employee-lists.index');
+}
+
+
+
+
+
+	public function waitingList()
+	{
+
+		$userId = Auth::id();
+
+		$data = EmployeeList::with('designation')
+			->where('created_by', $userId)
+			->whereNull('approve')
+			->paginate(10);
+
+
+		$total= count($data);
+		//dd($total);
+
+		return view('admin.employeeLists.waiting-list', compact('data','total'));
+	}
+
+	public function dfo()
+	{
+		$userId = Auth::id();
+
+		$division = User::where('id', $userId)
+			->pluck('forest_division_id')
+			->first();
+		$circle = User::where('id', $userId)
+			->pluck('forest_circle_id')
+			->first();
+
+		if ($division !== null && $circle == null) {
+			$user_ids = User::where('forest_division_id', $division)
+				->pluck('id');
+				// dd($user_ids);
+		}elseif ($division == null && $circle !== null) {
+			$user_ids = User::where('forest_circle_id', $circle)
+				->pluck('id');
+				// dd($user_ids);
+
+		}else{
+			$user_ids = User::pluck('id');
+				// dd($user_ids);
+		}
+
+		$data = EmployeeList::with('jobhistories.designation')
+				->where('approve', 'waiting')
+				->whereIn('created_by', $user_ids)
+				->paginate(10);
+				// dd($data);
+
+			$total = $data->total();
+			// dd($total);
+
+			return view('admin.employeeLists.dfo-review-list', compact('data', 'total'));
+
+
+
+
+	}
+
+	public function pending_review()
+	{
+
+		// dd(1);
+
+		$userId = Auth::id();
+
+		$division = User::where('id', $userId)
+			->pluck('forest_division_id')
+			->first();
+		$circle = User::where('id', $userId)
+			->pluck('forest_circle_id')
+			->first();
+
+		if ($division !== null && $circle == null) {
+			$user_ids = User::where('forest_division_id', $division)
+				->pluck('id');
+				// dd($user_ids);
+		}elseif ($division == null && $circle !== null) {
+			$user_ids = User::where('forest_circle_id', $circle)
+				->pluck('id');
+				// dd($user_ids);
+
+		}else{
+			$user_ids = User::pluck('id');
+				// dd($user_ids);
+		}
+
+		$data = EmployeeList::with('jobhistories.designation')
+				->where('approve', 'pending')
+				->whereIn('created_by', $user_ids)
+				->paginate(10);
+				// dd($data);
+
+			$total = $data->total();
+			// dd($total);
+
+			return view('admin.employeeLists.reviewer', compact('data', 'total'));
+
+
+
+	}
+
+	public function three_months_report_designation()
     {
 
         $designations = Designation::all();
@@ -579,16 +265,18 @@ class EmployeeListController extends Controller
         $divisions = ForestDivision::all();
 
 
-        return view('admin.employeeLists.threeMonthsDesignation', compact('divisions', 'circles', 'quotas', 'districts', 'designations'));
+        return view('admin.employeeLists.threeMonthsDesignation', compact('divisions','circles','quotas','districts','designations'));
     }
 
-    public function downloadThreeMonthsDesignation(Request $request)
+
+	public function downloadThreeMonthsCircleOffice(Request $request)
     {
 
-        $designationId = $request->designation_id;
+        $circle_id = $request->circle_id;
+        // dd($circle_id);
 
-
-        $desig = Designation::find($designationId);
+        $desig = ForestState::find($circle_id);
+        // dd($desig);
 
         $userId = Auth::id();
         $threeMonthsReport = [];
@@ -603,40 +291,38 @@ class EmployeeListController extends Controller
         $locale = App::getLocale();
         $columname = $locale === 'bn' ? 'name_bn' : 'name_en';
 
-        // Fetch employee data based on circle/division and designation_id (No pagination)
-        if ($circles !== null && $divisions == null) {
+        $employeeQuery = EmployeeList::where('approve', 'Approved');
+
+
+        // Determine filtering logic based on user's circle/division
+        if ($circles && !$divisions) {
             // Fetch employees in the same circle
-            $sameOfficeIds = User::select('id')
-                ->where('forest_circle_id', $circles)
-                ->pluck('id');
-            $employeeList = EmployeeList::whereIn('created_by', $sameOfficeIds)
-                ->where('approve', 'Approved');
-        } elseif ($circles == null && $divisions !== null) {
+            $sameOfficeIds = User::where('forest_circle_id', $circles)->pluck('id');
+            $employeeQuery->whereIn('created_by', $sameOfficeIds);
+        } elseif (!$circles && $divisions) {
             // Fetch employees in the same division
-            $sameOfficeIds = User::select('id')
-                ->where('forest_division_id', $divisions)
-                ->pluck('id');
-            $employeeList = EmployeeList::whereIn('created_by', $sameOfficeIds)
-                ->where('approve', 'Approved');
-        } else {
-            // Fetch all employees approved
-            $employeeList = EmployeeList::where('approve', 'Approved');
+            $sameOfficeIds = User::where('forest_division_id', $divisions)->pluck('id');
+            $employeeQuery->whereIn('created_by', $sameOfficeIds);
         }
 
-        if ($designationId) {
-            $employeeList = $employeeList->where('designation_id', $designationId);
+        if ($circle_id) {
+            $same = User::where('forest_circle_id', $circle_id)->pluck('id');
+            $employeeQuery->whereIn('created_by', $same);
         }
 
         // Retrieve the data
-        $employeeList = $employeeList->get();  // Execute the query
+        $employeeList = $employeeQuery->get();
+
+        // Debug output (Remove or comment this in production)
+        // dd($employeeList);
 
 
         // Split the employee list into chunks of 100
         $chunks = $employeeList->chunk(100);
-        $chunkReport = [];
+
 
         foreach ($chunks as $index => $chunk) {
-
+            $chunkReport = [];
 
             foreach ($chunk as $employee) {
                 $jobHistories = [];
@@ -771,7 +457,7 @@ class EmployeeListController extends Controller
         }
 
         // Generate the PDF
-        $pdf = PDF::loadView('admin.employeeLists.threeMonthDesignationDownload', compact('desig', 'userId', 'chunkReport'), [], [
+        $pdf = PDF::loadView('admin.employeeLists.threeMonthsCircleDownload', compact('desig', 'userId', 'chunkReport'), [], [
             'margin_top' => 20,
             'margin_bottom' => 15,
             'margin_left' => 18,
@@ -784,6 +470,613 @@ class EmployeeListController extends Controller
 
         // Return the PDF for download
         return $pdf->download('three_month_report.pdf');
+    }
+
+	public function downloadThreeMonthsCircle(Request $request)
+    {
+
+        $circle_id = $request->circle_id;
+        // dd($circle_id);
+
+        $desig = ForestState::find($circle_id);
+        // dd($desig);
+
+        $division_ids = ForestDivision::select('id')
+            ->where('forest_state_id', $circle_id)
+            ->pluck('id');
+		//dd($division_ids);
+
+
+
+        $userId = Auth::id();
+        $threeMonthsReport = [];
+		$chunkReport = [];
+
+        // Fetch the user's info (forest_circle_id, forest_division_id)
+        $userInfo = User::select('forest_circle_id', 'forest_division_id')
+                        ->where('id', $userId)
+                        ->first();
+
+        $divisions = $userInfo->forest_division_id;
+        $circles = $userInfo->forest_circle_id;
+        $locale = App::getLocale();
+        $columname = $locale === 'bn' ? 'name_bn' : 'name_en';
+
+        $employeeQuery = EmployeeList::where('approve', 'Approved');
+
+
+        // Determine filtering logic based on user's circle/division
+        if ($circles && !$divisions) {
+            // Fetch employees in the same circle
+            $sameOfficeIds = User::where('forest_circle_id', $circles)->pluck('id');
+            $employeeQuery->whereIn('created_by', $sameOfficeIds);
+        } elseif (!$circles && $divisions) {
+            // Fetch employees in the same division
+            $sameOfficeIds = User::where('forest_division_id', $divisions)->pluck('id');
+            $employeeQuery->whereIn('created_by', $sameOfficeIds);
+        }
+
+        if ($circle_id) {
+			$same = User::select('id')
+			->where('forest_circle_id', $circle_id)
+            ->orWhereIn('forest_division_id', $division_ids)
+			->pluck('id');
+			$employeeQuery->whereIn('created_by', $same);
+        }
+
+        // Retrieve the data
+        $employeeList = $employeeQuery->get();
+
+        // Debug output (Remove or comment this in production)
+        // dd($employeeList);
+
+
+        // Split the employee list into chunks of 100
+        $chunks = $employeeList->chunk(100);
+		$chunkReport = [];
+
+        foreach ($chunks as $index => $chunk) {
+
+
+            foreach ($chunk as $employee) {
+                $jobHistories = [];
+                $trainingHistories = [];
+                $educationHistories = [];
+                $mamlaHistories = [];
+
+                // Process job histories
+                foreach ($employee->allJob as $job) {
+                    $workPlace_bn = '';
+                    $workPlace_en = '';
+
+                    if ($job->circle_list_id !== null && $job->division_list_id == null) {
+                        $workPlace_bn = $job->circle_list->name_bn ?? '';
+                        $workPlace_en = $job->circle_list->name_en ?? '';
+                    } elseif ($job->division_list_id !== null && $job->circle_list_id !== null) {
+                        $workPlace_bn = $job->division_list->name_bn ?? '';
+                        $workPlace_en = $job->division_list->name_en ?? '';
+                    } elseif ($job->level_2 !== null) {
+                        $workPlace_bn = $job->level_2 ?? '';
+                        $workPlace_en = $job->level_2 ?? '';
+                    } elseif ($job->academy_type !== null) {
+                        $workPlace_bn = $job->academy_type ?? '';
+                        $workPlace_en = $job->academy_type ?? '';
+                    } else {
+                        $workPlace_bn = $job->institutename ?? '';
+                        $workPlace_en = $job->institutename ?? '';
+                    }
+
+                    $jobHistories[] = [
+                        'work_place_bn' => $workPlace_bn,
+                        'work_place_en' => $workPlace_en,
+                        'start_date' => $job->joining_date ?? '',
+                        'end_date' => $job->release_date ?? '',
+                    ];
+                }
+
+                // Process training histories
+                foreach ($employee->training_list as $training) {
+                    $trainingHistories[] = [
+                        'training_name' => $training->training_name ?? '',
+                    ];
+                }
+
+                // Process education histories
+                foreach ($employee->educationHistory as $education) {
+                    $educationHistories[] = [
+                        'education_name_bn' => $education->examdegree->name_bn ?? '',
+                        'education_name_en' => $education->examdegree->name_en ?? '',
+                        'board_name_bn' => $education->exam_board->name_bn ?? '',
+                        'board_name_en' => $education->exam_board->name_en ?? '',
+                    ];
+                }
+
+                // Process mamla histories
+                foreach ($employee->mamlaHistory as $mamla) {
+                    $mamlaHistories[] = [
+                        'mamla_name_bn' => $mamla->name_bn ?? '',
+                        'mamla_name_en' => $mamla->name_en ?? '',
+                        'mamla_start' => $mamla->mamla_start ?? '',
+                        'mamla_end' => $mamla->mamla_end ?? '',
+                        'comment' => $mamla->remzrk ?? '',
+                    ];
+                }
+
+                // Calculate total job duration
+                $totalDuration = Carbon::now()->diff(Carbon::createFromFormat('d/m/Y', $employee->fjoining_date));
+
+                $total_job_bn = sprintf('%d বছর, %d মাস, %d দিন', $totalDuration->y, $totalDuration->m, $totalDuration->d);
+                $total_job_en = sprintf('%d years, %d months, %d days', $totalDuration->y, $totalDuration->m, $totalDuration->d);
+
+                // Add all the details to the chunk report
+                $chunkReport[] = [
+                    'employee_name_bn' => $employee->fullname_bn ?? '',
+                    'employee_name_en' => $employee->fullname_en ?? '',
+                    'designation_bn' => $employee->designation->name_bn ?? '',
+                    'designation_en' => $employee->designation->name_en ?? '',
+                    'grade_bn' => $employee->grade->name_bn ?? '',
+                    'grade_en' => $employee->grade->name_en ?? '',
+                    'promotion_grade_bn' => $employee->promotion->grade->name_bn ?? '',
+                    'promotion_grade_en' => $employee->promotion->grade->name_en ?? '',
+                    'dob' => $employee->date_of_birth ?? '',
+                    'home_district_bn' => $employee->home_district->name_bn ?? '',
+                    'home_district_en' => $employee->home_district->name_en ?? '',
+                    'gender_bn' => $employee->gender->name_bn ?? '',
+                'gender_en' => $employee->gender->name_en ?? '',
+                'permanent_address_bn' => $employee->permanent->thana_upazila->name_bn ?? '',
+                'permanent_village' => $employee->permanent->flat_house ?? '',
+                'permanent_post' => $employee->permanent->post_office ?? '',
+                'permanent_district_bn' => $employee->permanent->thana_upazila->district->name_bn ?? '',
+                'permanent_district_en' => $employee->permanent->thana_upazila->district->name_en ?? '',
+                'permanent_address_en' => $employee->permanent->thana_upazila->name_en ?? '',
+                'present_address_bn' => $employee->present->thana_upazila->name_bn ?? '',
+                'present_village' => $employee->present->flat_house ?? '',
+                'present_post' => $employee->present->post_office ?? '',
+                'present_district_bn' => $employee->present->thana_upazila->district->name_bn ?? '',
+                'present_district_en' => $employee->present->thana_upazila->district->name_en ?? '',
+                'present_address_en' => $employee->present->thana_upazila->name_en ?? '',
+                    'fjoining_date' => $employee->fjoining_date ?? '',
+                    'promotion_date' => $employee->promotion->go_issue_date ?? '',
+                    'circle_name_bn' => $employee->jobhistory->circle_list->name_bn ?? '',
+                    'circle_name_en' => $employee->jobhistory->circle_list->name_en ?? '',
+                    'office_name' => $employee->jobhistory->level_2 ?? '',
+                    'joining_date' => $employee->jobhistory->joining_date ?? '',
+                    'division_name_bn' => $employee->jobhistory->division_list->name_bn ?? '',
+                    'division_name_en' => $employee->jobhistory->division_list->name_en ?? '',
+                    'range_name_bn' => $employee->jobhistory->range_list->name_bn ?? '',
+                    'range_name_en' => $employee->jobhistory->range_list->name_en ?? '',
+                    'beat_name_bn' => $employee->jobhistory->beat_list->name_bn ?? '',
+                    'beat_name_en' => $employee->jobhistory->beat_list->name_en ?? '',
+                    'revenue_id' => $employee->projectrevenue_id ?? '',
+                    'project_id' => $employee->project_id ?? '',
+                    'project_name_bn' => $employee->project->name_bn ?? '',
+                    'project_name_en' => $employee->project->name_en ?? '',
+                    'job_histories' => $jobHistories,
+                    'total_job_bn' => $total_job_bn,
+                    'total_job_en' => $total_job_en,
+                    'quota_bn' => $employee->quota->name_bn ??  '',
+                    'quota_en' => $employee->quota->name_en ??  '',
+                    'relation_bn' => $employee->freedomfighter->name_bn ??  '',
+                    'relation_en' => $employee->freedomfighter->name_en ??  '',
+                    'fighter_name' => $employee->freedomfighter_name ??  '',
+                    'fighter_address' => $employee->freedomfighter_address ??  '',
+                    'fighter_number' => $employee->freedomfighter_go ??  '',
+                    'training_histories' => $trainingHistories,
+                    'education_histories' => $educationHistories,
+                    'mamla_histories' => $mamlaHistories,
+                    'prl_date' => $employee->prl_date ?? '',
+                ];
+            }
+        }
+
+        // Generate the PDF
+    $pdf = PDF::loadView('admin.employeeLists.threeMonthsCircleDownload', compact('desig', 'userId', 'chunkReport'), [], [
+        'margin_top' => 20,
+        'margin_bottom' => 15,
+        'margin_left' => 18,
+        'margin_right' => 18,
+        'format' => 'A4',
+        'orientation' => 'landscape',
+        'default_font_size' => '15',
+        'default_font' => 'nsikosh',
+    ]);
+
+    // Return the PDF for download
+    return $pdf->download('three_month_report.pdf');
+    }
+
+
+    public function downloadThreeMonthsDivision(Request $request)
+{
+    ini_set('pcre.backtrack_limit', '5000000'); // Increase limits
+    ini_set('pcre.recursion_limit', '5000000');
+
+    $division_id = $request->division_id;
+    $desig = ForestDivision::find($division_id);
+    $userId = Auth::id();
+    $threeMonthsReport = [];
+
+    // Get logged-in user's office info
+    $userInfo = User::select('forest_circle_id', 'forest_division_id')
+        ->where('id', $userId)
+        ->first();
+
+    $divisionFilter = $userInfo->forest_division_id;
+    $circleFilter = $userInfo->forest_circle_id;
+    $locale = App::getLocale();
+
+    // Prepare employee base query
+    $employeeQuery = EmployeeList::where('approve', 'Approved');
+
+    if ($circleFilter && !$divisionFilter) {
+        $sameOfficeIds = User::where('forest_circle_id', $circleFilter)->pluck('id');
+        $employeeQuery->whereIn('created_by', $sameOfficeIds);
+    } elseif (!$circleFilter && $divisionFilter) {
+        $sameOfficeIds = User::where('forest_division_id', $divisionFilter)->pluck('id');
+        $employeeQuery->whereIn('created_by', $sameOfficeIds);
+    }
+
+    // If division is selected in request
+    if ($division_id) {
+        $same = User::where('forest_division_id', $division_id)->pluck('id');
+        $employeeQuery->whereIn('created_by', $same);
+    }
+
+    // Get all employees in chunks
+    $employeeListChunks = $employeeQuery->get()->chunk(100);
+    $chunkReport = []; // Collect final report
+
+    foreach ($employeeListChunks as $chunk) {
+        foreach ($chunk as $employee) {
+            $jobHistories = [];
+            $trainingHistories = [];
+            $educationHistories = [];
+            $mamlaHistories = [];
+
+            // Job Histories
+            foreach ($employee->allJob as $job) {
+                $workPlace_bn = $workPlace_en = '';
+                if ($job->circle_list_id && !$job->division_list_id) {
+                    $workPlace_bn = $job->circle_list->name_bn ?? '';
+                    $workPlace_en = $job->circle_list->name_en ?? '';
+                } elseif ($job->circle_list_id && $job->division_list_id) {
+                    $workPlace_bn = $job->division_list->name_bn ?? '';
+                    $workPlace_en = $job->division_list->name_en ?? '';
+                } elseif ($job->level_2) {
+                    $workPlace_bn = $job->level_2;
+                    $workPlace_en = $job->level_2;
+                } elseif ($job->academy_type) {
+                    $workPlace_bn = $job->academy_type;
+                    $workPlace_en = $job->academy_type;
+                } else {
+                    $workPlace_bn = $job->institutename ?? '';
+                    $workPlace_en = $job->institutename ?? '';
+                }
+
+                $jobHistories[] = [
+                    'work_place_bn' => $workPlace_bn,
+                    'work_place_en' => $workPlace_en,
+                    'start_date' => $job->joining_date ?? '',
+                    'end_date' => $job->release_date ?? '',
+                ];
+            }
+
+            // Trainings
+            foreach ($employee->training_list as $training) {
+                $trainingHistories[] = [
+                    'training_name' => $training->training_name ?? '',
+                ];
+            }
+
+            // Education
+            foreach ($employee->educationHistory as $edu) {
+                $educationHistories[] = [
+                    'education_name_bn' => $edu->examdegree->name_bn ?? '',
+                    'education_name_en' => $edu->examdegree->name_en ?? '',
+                    'passing_year' => $edu->passing_year ?? '',
+                    'board_name_bn' => $edu->exam_board->name_bn ?? '',
+                    'board_name_en' => $edu->exam_board->name_en ?? '',
+                ];
+            }
+
+            // Mamla
+            foreach ($employee->mamlaHistory as $mamla) {
+                $mamlaHistories[] = [
+                    'mamla_name_bn' => $mamla->name_bn ?? '',
+                    'mamla_name_en' => $mamla->name_en ?? '',
+                    'mamla_start' => $mamla->mamla_start ?? '',
+                    'mamla_end' => $mamla->mamla_end ?? '',
+                    'comment' => $mamla->remzrk ?? '',
+                ];
+            }
+
+            // Duration
+            $totalDuration = Carbon::now()->diff(Carbon::createFromFormat('d/m/Y', $employee->fjoining_date));
+            $total_job_bn = sprintf('%d বছর, %d মাস, %d দিন', $totalDuration->y, $totalDuration->m, $totalDuration->d);
+            $total_job_en = sprintf('%d years, %d months, %d days', $totalDuration->y, $totalDuration->m, $totalDuration->d);
+
+            // Add to report
+            $chunkReport[] = [
+                'employee_name_bn' => $employee->fullname_bn ?? '',
+                'employee_name_en' => $employee->fullname_en ?? '',
+                'designation_bn' => $employee->designation->name_bn ?? '',
+                'designation_en' => $employee->designation->name_en ?? '',
+                'grade_bn' => $employee->grade->name_bn ?? '',
+                'grade_en' => $employee->grade->name_en ?? '',
+                'promotion_grade_bn' => $employee->promotion->grade->name_bn ?? '',
+                'promotion_grade_en' => $employee->promotion->grade->name_en ?? '',
+                'dob' => $employee->date_of_birth ?? '',
+                'home_district_bn' => $employee->home_district->name_bn ?? '',
+                'home_district_en' => $employee->home_district->name_en ?? '',
+                'gender_bn' => $employee->gender->name_bn ?? '',
+                'gender_en' => $employee->gender->name_en ?? '',
+                'permanent_address_bn' => $employee->permanent->thana_upazila->name_bn ?? '',
+                'permanent_village' => $employee->permanent->flat_house ?? '',
+                'permanent_post' => $employee->permanent->post_office ?? '',
+                'permanent_district_bn' => $employee->permanent->thana_upazila->district->name_bn ?? '',
+                'permanent_district_en' => $employee->permanent->thana_upazila->district->name_en ?? '',
+                'permanent_address_en' => $employee->permanent->thana_upazila->name_en ?? '',
+                'present_address_bn' => $employee->present->thana_upazila->name_bn ?? '',
+                'present_village' => $employee->present->flat_house ?? '',
+                'present_post' => $employee->present->post_office ?? '',
+                'present_district_bn' => $employee->present->thana_upazila->district->name_bn ?? '',
+                'present_district_en' => $employee->present->thana_upazila->district->name_en ?? '',
+                'present_address_en' => $employee->present->thana_upazila->name_en ?? '',
+                'fjoining_date' => $employee->fjoining_date ?? '',
+                'promotion_date' => $employee->promotion->go_issue_date ?? '',
+                'circle_name_bn' => $employee->jobhistory->circle_list->name_bn ?? '',
+                'circle_name_en' => $employee->jobhistory->circle_list->name_en ?? '',
+                'office_name' => $employee->jobhistory->level_2 ?? '',
+                'joining_date' => $employee->jobhistory->joining_date ?? '',
+                'division_name_bn' => $employee->jobhistory->division_list->name_bn ?? '',
+                'division_name_en' => $employee->jobhistory->division_list->name_en ?? '',
+                'range_name_bn' => $employee->jobhistory->range_list->name_bn ?? '',
+                'range_name_en' => $employee->jobhistory->range_list->name_en ?? '',
+                'beat_name_bn' => $employee->jobhistory->beat_list->name_bn ?? '',
+                'beat_name_en' => $employee->jobhistory->beat_list->name_en ?? '',
+                'revenue_id' => $employee->projectrevenue_id ?? '',
+                'project_id' => $employee->project_id ?? '',
+                'project_name_bn' => $employee->project->name_bn ?? '',
+                'project_name_en' => $employee->project->name_en ?? '',
+                'job_histories' => $jobHistories,
+                'total_job_bn' => $total_job_bn,
+                'total_job_en' => $total_job_en,
+                'quota_bn' => $employee->quota->name_bn ?? '',
+                'quota_en' => $employee->quota->name_en ?? '',
+                'relation_bn' => $employee->freedomfighter->name_bn ?? '',
+                'relation_en' => $employee->freedomfighter->name_en ?? '',
+                'fighter_name' => $employee->freedomfighter_name ?? '',
+                'fighter_address' => $employee->freedomfighter_address ?? '',
+                'fighter_number' => $employee->freedomfighter_go ?? '',
+                'training_histories' => $trainingHistories,
+                'education_histories' => $educationHistories,
+                'mamla_histories' => $mamlaHistories,
+                'prl_date' => $employee->prl_date ?? '',
+            ];
+        }
+    }
+
+    // Final PDF render
+    $pdf = PDF::loadView('admin.employeeLists.threeMonthsDivisionDownload', [
+        'desig' => $desig,
+        'userId' => $userId,
+        'chunkReport' => $chunkReport,
+    ], [
+        'margin_top' => 20,
+        'margin_bottom' => 15,
+        'margin_left' => 18,
+        'margin_right' => 18,
+        'format' => 'A4',
+        'orientation' => 'landscape',
+        'default_font_size' => '15',
+        'default_font' => 'nsikosh',
+    ]);
+
+    return $pdf->download('three_month_report.pdf');
+}
+
+
+	public function downloadThreeMonthsDesignation(Request $request)
+    {
+
+        $designationId = $request->designation_id;;
+
+
+        $desig = Designation::find($designationId);
+
+        $userId = Auth::id();
+        $threeMonthsReport = [];
+
+        // Fetch the user's info (forest_circle_id, forest_division_id)
+        $userInfo = User::select('forest_circle_id', 'forest_division_id')
+                        ->where('id', $userId)
+                        ->first();
+
+        $divisions = $userInfo->forest_division_id;
+        $circles = $userInfo->forest_circle_id;
+        $locale = App::getLocale();
+        $columname = $locale === 'bn' ? 'name_bn' : 'name_en';
+
+        // Fetch employee data based on circle/division and designation_id (No pagination)
+        if ($circles !== null && $divisions == null) {
+            // Fetch employees in the same circle
+            $sameOfficeIds = User::select('id')
+                ->where('forest_circle_id', $circles)
+                ->pluck('id');
+            $employeeList = EmployeeList::whereIn('created_by', $sameOfficeIds)
+                ->where('approve', 'Approved');
+        } elseif ($circles == null && $divisions !== null) {
+            // Fetch employees in the same division
+            $sameOfficeIds = User::select('id')
+                ->where('forest_division_id', $divisions)
+                ->pluck('id');
+            $employeeList = EmployeeList::whereIn('created_by', $sameOfficeIds)
+                ->where('approve', 'Approved');
+        } else {
+            // Fetch all employees approved
+            $employeeList = EmployeeList::where('approve', 'Approved');
+        }
+
+        if ($designationId) {
+            $employeeList = $employeeList->where('designation_id', $designationId);
+        }
+
+        // Retrieve the data
+        $employeeList = $employeeList->get();  // Execute the query
+
+
+        // Split the employee list into chunks of 100
+        $chunks = $employeeList->chunk(100);
+    $chunkReport = [];
+
+        foreach ($chunks as $index => $chunk) {
+
+
+            foreach ($chunk as $employee) {
+                $jobHistories = [];
+                $trainingHistories = [];
+                $educationHistories = [];
+                $mamlaHistories = [];
+
+                // Process job histories
+                foreach ($employee->allJob as $job) {
+                    $workPlace_bn = '';
+                    $workPlace_en = '';
+
+                    if ($job->circle_list_id !== null && $job->division_list_id == null) {
+                        $workPlace_bn = $job->circle_list->name_bn ?? '';
+                        $workPlace_en = $job->circle_list->name_en ?? '';
+                    } elseif ($job->division_list_id !== null && $job->circle_list_id !== null) {
+                        $workPlace_bn = $job->division_list->name_bn ?? '';
+                        $workPlace_en = $job->division_list->name_en ?? '';
+                    } elseif ($job->level_2 !== null) {
+                        $workPlace_bn = $job->level_2 ?? '';
+                        $workPlace_en = $job->level_2 ?? '';
+                    } elseif ($job->academy_type !== null) {
+                        $workPlace_bn = $job->academy_type ?? '';
+                        $workPlace_en = $job->academy_type ?? '';
+                    } else {
+                        $workPlace_bn = $job->institutename ?? '';
+                        $workPlace_en = $job->institutename ?? '';
+                    }
+
+                    $jobHistories[] = [
+                        'work_place_bn' => $workPlace_bn,
+                        'work_place_en' => $workPlace_en,
+                        'start_date' => $job->joining_date ?? '',
+                        'end_date' => $job->release_date ?? '',
+                    ];
+                }
+
+                // Process training histories
+                foreach ($employee->training_list as $training) {
+                    $trainingHistories[] = [
+                        'training_name' => $training->training_name ?? '',
+                    ];
+                }
+
+                // Process education histories
+                foreach ($employee->educationHistory as $education) {
+                    $educationHistories[] = [
+                        'education_name_bn' => $education->examdegree->name_bn ?? '',
+                        'education_name_en' => $education->examdegree->name_en ?? '',
+                        'board_name_bn' => $education->exam_board->name_bn ?? '',
+                        'board_name_en' => $education->exam_board->name_en ?? '',
+                    ];
+                }
+
+                // Process mamla histories
+                foreach ($employee->mamlaHistory as $mamla) {
+                    $mamlaHistories[] = [
+                        'mamla_name_bn' => $mamla->name_bn ?? '',
+                        'mamla_name_en' => $mamla->name_en ?? '',
+                        'mamla_start' => $mamla->mamla_start ?? '',
+                        'mamla_end' => $mamla->mamla_end ?? '',
+                        'comment' => $mamla->remzrk ?? '',
+                    ];
+                }
+
+                // Calculate total job duration
+                $totalDuration = Carbon::now()->diff(Carbon::createFromFormat('d/m/Y', $employee->fjoining_date));
+
+                $total_job_bn = sprintf('%d বছর, %d মাস, %d দিন', $totalDuration->y, $totalDuration->m, $totalDuration->d);
+                $total_job_en = sprintf('%d years, %d months, %d days', $totalDuration->y, $totalDuration->m, $totalDuration->d);
+
+                // Add all the details to the chunk report
+                $chunkReport[] = [
+                    'employee_name_bn' => $employee->fullname_bn ?? '',
+                    'employee_name_en' => $employee->fullname_en ?? '',
+                    'designation_bn' => $employee->designation->name_bn ?? '',
+                    'designation_en' => $employee->designation->name_en ?? '',
+                    'grade_bn' => $employee->grade->name_bn ?? '',
+                    'grade_en' => $employee->grade->name_en ?? '',
+                    'promotion_grade_bn' => $employee->promotion->grade->name_bn ?? '',
+                    'promotion_grade_en' => $employee->promotion->grade->name_en ?? '',
+                    'dob' => $employee->date_of_birth ?? '',
+                    'home_district_bn' => $employee->home_district->name_bn ?? '',
+                    'home_district_en' => $employee->home_district->name_en ?? '',
+                    'gender_bn' => $employee->gender->name_bn ?? '',
+                'gender_en' => $employee->gender->name_en ?? '',
+                'permanent_address_bn' => $employee->permanent->thana_upazila->name_bn ?? '',
+                'permanent_village' => $employee->permanent->flat_house ?? '',
+                'permanent_post' => $employee->permanent->post_office ?? '',
+                'permanent_district_bn' => $employee->permanent->thana_upazila->district->name_bn ?? '',
+                'permanent_district_en' => $employee->permanent->thana_upazila->district->name_en ?? '',
+                'permanent_address_en' => $employee->permanent->thana_upazila->name_en ?? '',
+                'present_address_bn' => $employee->present->thana_upazila->name_bn ?? '',
+                'present_village' => $employee->present->flat_house ?? '',
+                'present_post' => $employee->present->post_office ?? '',
+                'present_district_bn' => $employee->present->thana_upazila->district->name_bn ?? '',
+                'present_district_en' => $employee->present->thana_upazila->district->name_en ?? '',
+                'present_address_en' => $employee->present->thana_upazila->name_en ?? '',
+                    'fjoining_date' => $employee->fjoining_date ?? '',
+                    'promotion_date' => $employee->promotion->go_issue_date ?? '',
+                    'circle_name_bn' => $employee->jobhistory->circle_list->name_bn ?? '',
+                    'circle_name_en' => $employee->jobhistory->circle_list->name_en ?? '',
+                    'office_name' => $employee->jobhistory->level_2 ?? '',
+                    'joining_date' => $employee->jobhistory->joining_date ?? '',
+                    'division_name_bn' => $employee->jobhistory->division_list->name_bn ?? '',
+                    'division_name_en' => $employee->jobhistory->division_list->name_en ?? '',
+                    'range_name_bn' => $employee->jobhistory->range_list->name_bn ?? '',
+                    'range_name_en' => $employee->jobhistory->range_list->name_en ?? '',
+                    'beat_name_bn' => $employee->jobhistory->beat_list->name_bn ?? '',
+                    'beat_name_en' => $employee->jobhistory->beat_list->name_en ?? '',
+                    'revenue_id' => $employee->projectrevenue_id ?? '',
+                    'project_id' => $employee->project_id ?? '',
+                    'project_name_bn' => $employee->project->name_bn ?? '',
+                    'project_name_en' => $employee->project->name_en ?? '',
+                    'job_histories' => $jobHistories,
+                    'total_job_bn' => $total_job_bn,
+                    'total_job_en' => $total_job_en,
+                    'quota_bn' => $employee->quota->name_bn ??  '',
+                    'quota_en' => $employee->quota->name_en ??  '',
+                    'relation_bn' => $employee->freedomfighter->name_bn ??  '',
+                    'relation_en' => $employee->freedomfighter->name_en ??  '',
+                    'fighter_name' => $employee->freedomfighter_name ??  '',
+                    'fighter_address' => $employee->freedomfighter_address ??  '',
+                    'fighter_number' => $employee->freedomfighter_go ??  '',
+                    'training_histories' => $trainingHistories,
+                    'education_histories' => $educationHistories,
+                    'mamla_histories' => $mamlaHistories,
+                    'prl_date' => $employee->prl_date ?? '',
+                ];
+            }
+        }
+
+        // Generate the PDF
+    $pdf = PDF::loadView('admin.employeeLists.threeMonthDesignationDownload', compact('desig', 'userId', 'chunkReport'), [], [
+        'margin_top' => 20,
+        'margin_bottom' => 15,
+        'margin_left' => 18,
+        'margin_right' => 18,
+        'format' => 'A4',
+        'orientation' => 'landscape',
+        'default_font_size' => '15',
+        'default_font' => 'nsikosh',
+    ]);
+
+    // Return the PDF for download
+    return $pdf->download('three_month_report.pdf');
     }
 
 
@@ -800,8 +1093,8 @@ class EmployeeListController extends Controller
 
         // Fetch the user's info (forest_circle_id, forest_division_id)
         $userInfo = User::select('forest_circle_id', 'forest_division_id')
-            ->where('id', $userId)
-            ->first();
+                        ->where('id', $userId)
+                        ->first();
 
         $divisions = $userInfo->forest_division_id;
         $circles = $userInfo->forest_circle_id;
@@ -839,9 +1132,9 @@ class EmployeeListController extends Controller
         // Split the employee list into chunks of 100
         $chunks = $employeeList->chunk(100);
 
-
+    $chunkReport = [];
         foreach ($chunks as $index => $chunk) {
-            $chunkReport = [];
+
 
             foreach ($chunk as $employee) {
                 $jobHistories = [];
@@ -891,7 +1184,6 @@ class EmployeeListController extends Controller
                     $educationHistories[] = [
                         'education_name_bn' => $education->examdegree->name_bn ?? '',
                         'education_name_en' => $education->examdegree->name_en ?? '',
-                        'passing_year' => $education->passing_year ?? '',
                         'board_name_bn' => $education->exam_board->name_bn ?? '',
                         'board_name_en' => $education->exam_board->name_en ?? '',
                     ];
@@ -928,19 +1220,19 @@ class EmployeeListController extends Controller
                     'home_district_bn' => $employee->home_district->name_bn ?? '',
                     'home_district_en' => $employee->home_district->name_en ?? '',
                     'gender_bn' => $employee->gender->name_bn ?? '',
-                    'gender_en' => $employee->gender->name_en ?? '',
-                    'permanent_address_bn' => $employee->permanent->thana_upazila->name_bn ?? '',
-                    'permanent_village' => $employee->permanent->flat_house ?? '',
-                    'permanent_post' => $employee->permanent->post_office ?? '',
-                    'permanent_district_bn' => $employee->permanent->thana_upazila->district->name_bn ?? '',
-                    'permanent_district_en' => $employee->permanent->thana_upazila->district->name_en ?? '',
-                    'permanent_address_en' => $employee->permanent->thana_upazila->name_en ?? '',
-                    'present_address_bn' => $employee->present->thana_upazila->name_bn ?? '',
-                    'present_village' => $employee->present->flat_house ?? '',
-                    'present_post' => $employee->present->post_office ?? '',
-                    'present_district_bn' => $employee->present->thana_upazila->district->name_bn ?? '',
-                    'present_district_en' => $employee->present->thana_upazila->district->name_en ?? '',
-                    'present_address_en' => $employee->present->thana_upazila->name_en ?? '',
+                'gender_en' => $employee->gender->name_en ?? '',
+                'permanent_address_bn' => $employee->permanent->thana_upazila->name_bn ?? '',
+                'permanent_village' => $employee->permanent->flat_house ?? '',
+                'permanent_post' => $employee->permanent->post_office ?? '',
+                'permanent_district_bn' => $employee->permanent->thana_upazila->district->name_bn ?? '',
+                'permanent_district_en' => $employee->permanent->thana_upazila->district->name_en ?? '',
+                'permanent_address_en' => $employee->permanent->thana_upazila->name_en ?? '',
+                'present_address_bn' => $employee->present->thana_upazila->name_bn ?? '',
+                'present_village' => $employee->present->flat_house ?? '',
+                'present_post' => $employee->present->post_office ?? '',
+                'present_district_bn' => $employee->present->thana_upazila->district->name_bn ?? '',
+                'present_district_en' => $employee->present->thana_upazila->district->name_en ?? '',
+                'present_address_en' => $employee->present->thana_upazila->name_en ?? '',
                     'fjoining_date' => $employee->fjoining_date ?? '',
                     'promotion_date' => $employee->promotion->go_issue_date ?? '',
                     'circle_name_bn' => $employee->jobhistory->circle_list->name_bn ?? '',
@@ -960,13 +1252,13 @@ class EmployeeListController extends Controller
                     'job_histories' => $jobHistories,
                     'total_job_bn' => $total_job_bn,
                     'total_job_en' => $total_job_en,
-                    'quota_bn' => $employee->quota->name_bn ?? '',
-                    'quota_en' => $employee->quota->name_en ?? '',
-                    'relation_bn' => $employee->freedomfighter->name_bn ?? '',
-                    'relation_en' => $employee->freedomfighter->name_en ?? '',
-                    'fighter_name' => $employee->freedomfighter_name ?? '',
-                    'fighter_address' => $employee->freedomfighter_address ?? '',
-                    'fighter_number' => $employee->freedomfighter_go ?? '',
+                    'quota_bn' => $employee->quota->name_bn ??  '',
+                    'quota_en' => $employee->quota->name_en ??  '',
+                    'relation_bn' => $employee->freedomfighter->name_bn ??  '',
+                    'relation_en' => $employee->freedomfighter->name_en ??  '',
+                    'fighter_name' => $employee->freedomfighter_name ??  '',
+                    'fighter_address' => $employee->freedomfighter_address ??  '',
+                    'fighter_number' => $employee->freedomfighter_go ??  '',
                     'training_histories' => $trainingHistories,
                     'education_histories' => $educationHistories,
                     'mamla_histories' => $mamlaHistories,
@@ -976,19 +1268,19 @@ class EmployeeListController extends Controller
         }
 
         // Generate the PDF
-        $pdf = PDF::loadView('admin.employeeLists.threeMonthsDistrictDownload', compact('desig', 'userId', 'chunkReport'), [], [
-            'margin_top' => 20,
-            'margin_bottom' => 15,
-            'margin_left' => 18,
-            'margin_right' => 18,
-            'format' => 'A4',
-            'orientation' => 'landscape',
-            'default_font_size' => '15',
-            'default_font' => 'nsikosh',
-        ]);
+    $pdf = PDF::loadView('admin.employeeLists.threeMonthsDistrictDownload', compact('desig', 'userId', 'chunkReport'), [], [
+        'margin_top' => 20,
+        'margin_bottom' => 15,
+        'margin_left' => 18,
+        'margin_right' => 18,
+        'format' => 'A4',
+        'orientation' => 'landscape',
+        'default_font_size' => '15',
+        'default_font' => 'nsikosh',
+    ]);
 
-        // Return the PDF for download
-        return $pdf->download('three_month_report.pdf');
+    // Return the PDF for download
+    return $pdf->download('three_month_report.pdf');
     }
 
 
@@ -1005,8 +1297,8 @@ class EmployeeListController extends Controller
 
         // Fetch the user's info (forest_circle_id, forest_division_id)
         $userInfo = User::select('forest_circle_id', 'forest_division_id')
-            ->where('id', $userId)
-            ->first();
+                        ->where('id', $userId)
+                        ->first();
 
         $divisions = $userInfo->forest_division_id;
         $circles = $userInfo->forest_circle_id;
@@ -1044,222 +1336,7 @@ class EmployeeListController extends Controller
         // Split the employee list into chunks of 100
         $chunks = $employeeList->chunk(100);
 
-
-        foreach ($chunks as $index => $chunk) {
-            $chunkReport = [];
-
-            foreach ($chunk as $employee) {
-                $jobHistories = [];
-                $trainingHistories = [];
-                $educationHistories = [];
-                $mamlaHistories = [];
-
-                // Process job histories
-                foreach ($employee->allJob as $job) {
-                    $workPlace_bn = '';
-                    $workPlace_en = '';
-
-                    if ($job->circle_list_id !== null && $job->division_list_id == null) {
-                        $workPlace_bn = $job->circle_list->name_bn ?? '';
-                        $workPlace_en = $job->circle_list->name_en ?? '';
-                    } elseif ($job->division_list_id !== null && $job->circle_list_id !== null) {
-                        $workPlace_bn = $job->division_list->name_bn ?? '';
-                        $workPlace_en = $job->division_list->name_en ?? '';
-                    } elseif ($job->level_2 !== null) {
-                        $workPlace_bn = $job->level_2 ?? '';
-                        $workPlace_en = $job->level_2 ?? '';
-                    } elseif ($job->academy_type !== null) {
-                        $workPlace_bn = $job->academy_type ?? '';
-                        $workPlace_en = $job->academy_type ?? '';
-                    } else {
-                        $workPlace_bn = $job->institutename ?? '';
-                        $workPlace_en = $job->institutename ?? '';
-                    }
-
-                    $jobHistories[] = [
-                        'work_place_bn' => $workPlace_bn,
-                        'work_place_en' => $workPlace_en,
-                        'start_date' => $job->joining_date ?? '',
-                        'end_date' => $job->release_date ?? '',
-                    ];
-                }
-
-                // Process training histories
-                foreach ($employee->training_list as $training) {
-                    $trainingHistories[] = [
-                        'training_name' => $training->training_name ?? '',
-                    ];
-                }
-
-                // Process education histories
-                foreach ($employee->educationHistory as $education) {
-                    $educationHistories[] = [
-                        'education_name_bn' => $education->examdegree->name_bn ?? '',
-                        'education_name_en' => $education->examdegree->name_en ?? '',
-                        'passing_year' => $education->passing_year ?? '',
-                        'board_name_bn' => $education->exam_board->name_bn ?? '',
-                        'board_name_en' => $education->exam_board->name_en ?? '',
-                    ];
-                }
-
-                // Process mamla histories
-                foreach ($employee->mamlaHistory as $mamla) {
-                    $mamlaHistories[] = [
-                        'mamla_name_bn' => $mamla->name_bn ?? '',
-                        'mamla_name_en' => $mamla->name_en ?? '',
-                        'mamla_start' => $mamla->mamla_start ?? '',
-                        'mamla_end' => $mamla->mamla_end ?? '',
-                        'comment' => $mamla->remzrk ?? '',
-                    ];
-                }
-
-                // Calculate total job duration
-                $totalDuration = Carbon::now()->diff(Carbon::createFromFormat('d/m/Y', $employee->fjoining_date));
-
-                $total_job_bn = sprintf('%d বছর, %d মাস, %d দিন', $totalDuration->y, $totalDuration->m, $totalDuration->d);
-                $total_job_en = sprintf('%d years, %d months, %d days', $totalDuration->y, $totalDuration->m, $totalDuration->d);
-
-                // Add all the details to the chunk report
-                $chunkReport[] = [
-                    'employee_name_bn' => $employee->fullname_bn ?? '',
-                    'employee_name_en' => $employee->fullname_en ?? '',
-                    'designation_bn' => $employee->designation->name_bn ?? '',
-                    'designation_en' => $employee->designation->name_en ?? '',
-                    'grade_bn' => $employee->grade->name_bn ?? '',
-                    'grade_en' => $employee->grade->name_en ?? '',
-                    'promotion_grade_bn' => $employee->promotion->grade->name_bn ?? '',
-                    'promotion_grade_en' => $employee->promotion->grade->name_en ?? '',
-                    'dob' => $employee->date_of_birth ?? '',
-                    'home_district_bn' => $employee->home_district->name_bn ?? '',
-                    'home_district_en' => $employee->home_district->name_en ?? '',
-                    'gender_bn' => $employee->gender->name_bn ?? '',
-                    'gender_en' => $employee->gender->name_en ?? '',
-                    'permanent_address_bn' => $employee->permanent->thana_upazila->name_bn ?? '',
-                    'permanent_village' => $employee->permanent->flat_house ?? '',
-                    'permanent_post' => $employee->permanent->post_office ?? '',
-                    'permanent_district_bn' => $employee->permanent->thana_upazila->district->name_bn ?? '',
-                    'permanent_district_en' => $employee->permanent->thana_upazila->district->name_en ?? '',
-                    'permanent_address_en' => $employee->permanent->thana_upazila->name_en ?? '',
-                    'present_address_bn' => $employee->present->thana_upazila->name_bn ?? '',
-                    'present_village' => $employee->present->flat_house ?? '',
-                    'present_post' => $employee->present->post_office ?? '',
-                    'present_district_bn' => $employee->present->thana_upazila->district->name_bn ?? '',
-                    'present_district_en' => $employee->present->thana_upazila->district->name_en ?? '',
-                    'present_address_en' => $employee->present->thana_upazila->name_en ?? '',
-                    'fjoining_date' => $employee->fjoining_date ?? '',
-                    'promotion_date' => $employee->promotion->go_issue_date ?? '',
-                    'circle_name_bn' => $employee->jobhistory->circle_list->name_bn ?? '',
-                    'circle_name_en' => $employee->jobhistory->circle_list->name_en ?? '',
-                    'office_name' => $employee->jobhistory->level_2 ?? '',
-                    'joining_date' => $employee->jobhistory->joining_date ?? '',
-                    'division_name_bn' => $employee->jobhistory->division_list->name_bn ?? '',
-                    'division_name_en' => $employee->jobhistory->division_list->name_en ?? '',
-                    'range_name_bn' => $employee->jobhistory->range_list->name_bn ?? '',
-                    'range_name_en' => $employee->jobhistory->range_list->name_en ?? '',
-                    'beat_name_bn' => $employee->jobhistory->beat_list->name_bn ?? '',
-                    'beat_name_en' => $employee->jobhistory->beat_list->name_en ?? '',
-                    'revenue_id' => $employee->projectrevenue_id ?? '',
-                    'project_id' => $employee->project_id ?? '',
-                    'project_name_bn' => $employee->project->name_bn ?? '',
-                    'project_name_en' => $employee->project->name_en ?? '',
-                    'job_histories' => $jobHistories,
-                    'total_job_bn' => $total_job_bn,
-                    'total_job_en' => $total_job_en,
-                    'quota_bn' => $employee->quota->name_bn ?? '',
-                    'quota_en' => $employee->quota->name_en ?? '',
-                    'relation_bn' => $employee->freedomfighter->name_bn ?? '',
-                    'relation_en' => $employee->freedomfighter->name_en ?? '',
-                    'fighter_name' => $employee->freedomfighter_name ?? '',
-                    'fighter_address' => $employee->freedomfighter_address ?? '',
-                    'fighter_number' => $employee->freedomfighter_go ?? '',
-                    'training_histories' => $trainingHistories,
-                    'education_histories' => $educationHistories,
-                    'mamla_histories' => $mamlaHistories,
-                    'prl_date' => $employee->prl_date ?? '',
-                ];
-            }
-        }
-
-        // Generate the PDF
-        $pdf = PDF::loadView('admin.employeeLists.threeMonthsQuotaDownload', compact('desig', 'userId', 'chunkReport'), [], [
-            'margin_top' => 20,
-            'margin_bottom' => 15,
-            'margin_left' => 18,
-            'margin_right' => 18,
-            'format' => 'A4',
-            'orientation' => 'landscape',
-            'default_font_size' => '15',
-            'default_font' => 'nsikosh',
-        ]);
-
-        // Return the PDF for download
-        return $pdf->download('three_month_report.pdf');
-    }
-
-
-    public function downloadThreeMonthsCircle(Request $request)
-    {
-
-        $circle_id = $request->circle_id;
-        // dd($circle_id);
-
-        $desig = ForestState::find($circle_id);
-        // dd($desig);
-
-        $division_ids = ForestDivision::select('id')
-            ->where('forest_state_id', $circle_id)
-            ->pluck('id');
-
-
-        $same = User::select('id')
-            ->where('forest_circle_id', $circle_id)
-            ->orWhereIn('forest_division_id', $division_ids)
-            ->pluck('id');
-        //dd($same);
-
-        $userId = Auth::id();
-        $threeMonthsReport = [];
-
-        // Fetch the user's info (forest_circle_id, forest_division_id)
-        $userInfo = User::select('forest_circle_id', 'forest_division_id')
-            ->where('id', $userId)
-            ->first();
-
-        $divisions = $userInfo->forest_division_id;
-        $circles = $userInfo->forest_circle_id;
-        $locale = App::getLocale();
-        $columname = $locale === 'bn' ? 'name_bn' : 'name_en';
-
-        $employeeQuery = EmployeeList::where('approve', 'Approved');
-
-
-        // Determine filtering logic based on user's circle/division
-        if ($circles && !$divisions) {
-            // Fetch employees in the same circle
-            $sameOfficeIds = User::where('forest_circle_id', $circles)->pluck('id');
-            $employeeQuery->whereIn('created_by', $sameOfficeIds);
-        } elseif (!$circles && $divisions) {
-            // Fetch employees in the same division
-            $sameOfficeIds = User::where('forest_division_id', $divisions)->pluck('id');
-            $employeeQuery->whereIn('created_by', $sameOfficeIds);
-        }
-
-        if ($circle_id) {
-            $same = User::where('forest_circle_id', $circle_id)->pluck('id');
-            $employeeQuery->whereIn('created_by', $same);
-        }
-
-        // Retrieve the data
-        $employeeList = $employeeQuery->get();
-
-        // Debug output (Remove or comment this in production)
-        // dd($employeeList);
-
-
-        // Split the employee list into chunks of 100
-        $chunks = $employeeList->chunk(100);
-        $chunkReport = [];
-
+    $chunkReport = [];
         foreach ($chunks as $index => $chunk) {
 
 
@@ -1311,7 +1388,6 @@ class EmployeeListController extends Controller
                     $educationHistories[] = [
                         'education_name_bn' => $education->examdegree->name_bn ?? '',
                         'education_name_en' => $education->examdegree->name_en ?? '',
-                        'passing_year' => $education->passing_year ?? '',
                         'board_name_bn' => $education->exam_board->name_bn ?? '',
                         'board_name_en' => $education->exam_board->name_en ?? '',
                     ];
@@ -1348,19 +1424,19 @@ class EmployeeListController extends Controller
                     'home_district_bn' => $employee->home_district->name_bn ?? '',
                     'home_district_en' => $employee->home_district->name_en ?? '',
                     'gender_bn' => $employee->gender->name_bn ?? '',
-                    'gender_en' => $employee->gender->name_en ?? '',
-                    'permanent_address_bn' => $employee->permanent->thana_upazila->name_bn ?? '',
-                    'permanent_village' => $employee->permanent->flat_house ?? '',
-                    'permanent_post' => $employee->permanent->post_office ?? '',
-                    'permanent_district_bn' => $employee->permanent->thana_upazila->district->name_bn ?? '',
-                    'permanent_district_en' => $employee->permanent->thana_upazila->district->name_en ?? '',
-                    'permanent_address_en' => $employee->permanent->thana_upazila->name_en ?? '',
-                    'present_address_bn' => $employee->present->thana_upazila->name_bn ?? '',
-                    'present_village' => $employee->present->flat_house ?? '',
-                    'present_post' => $employee->present->post_office ?? '',
-                    'present_district_bn' => $employee->present->thana_upazila->district->name_bn ?? '',
-                    'present_district_en' => $employee->present->thana_upazila->district->name_en ?? '',
-                    'present_address_en' => $employee->present->thana_upazila->name_en ?? '',
+                'gender_en' => $employee->gender->name_en ?? '',
+                'permanent_address_bn' => $employee->permanent->thana_upazila->name_bn ?? '',
+                'permanent_village' => $employee->permanent->flat_house ?? '',
+                'permanent_post' => $employee->permanent->post_office ?? '',
+                'permanent_district_bn' => $employee->permanent->thana_upazila->district->name_bn ?? '',
+                'permanent_district_en' => $employee->permanent->thana_upazila->district->name_en ?? '',
+                'permanent_address_en' => $employee->permanent->thana_upazila->name_en ?? '',
+                'present_address_bn' => $employee->present->thana_upazila->name_bn ?? '',
+                'present_village' => $employee->present->flat_house ?? '',
+                'present_post' => $employee->present->post_office ?? '',
+                'present_district_bn' => $employee->present->thana_upazila->district->name_bn ?? '',
+                'present_district_en' => $employee->present->thana_upazila->district->name_en ?? '',
+                'present_address_en' => $employee->present->thana_upazila->name_en ?? '',
                     'fjoining_date' => $employee->fjoining_date ?? '',
                     'promotion_date' => $employee->promotion->go_issue_date ?? '',
                     'circle_name_bn' => $employee->jobhistory->circle_list->name_bn ?? '',
@@ -1380,13 +1456,13 @@ class EmployeeListController extends Controller
                     'job_histories' => $jobHistories,
                     'total_job_bn' => $total_job_bn,
                     'total_job_en' => $total_job_en,
-                    'quota_bn' => $employee->quota->name_bn ?? '',
-                    'quota_en' => $employee->quota->name_en ?? '',
-                    'relation_bn' => $employee->freedomfighter->name_bn ?? '',
-                    'relation_en' => $employee->freedomfighter->name_en ?? '',
-                    'fighter_name' => $employee->freedomfighter_name ?? '',
-                    'fighter_address' => $employee->freedomfighter_address ?? '',
-                    'fighter_number' => $employee->freedomfighter_go ?? '',
+                    'quota_bn' => $employee->quota->name_bn ??  '',
+                    'quota_en' => $employee->quota->name_en ??  '',
+                    'relation_bn' => $employee->freedomfighter->name_bn ??  '',
+                    'relation_en' => $employee->freedomfighter->name_en ??  '',
+                    'fighter_name' => $employee->freedomfighter_name ??  '',
+                    'fighter_address' => $employee->freedomfighter_address ??  '',
+                    'fighter_number' => $employee->freedomfighter_go ??  '',
                     'training_histories' => $trainingHistories,
                     'education_histories' => $educationHistories,
                     'mamla_histories' => $mamlaHistories,
@@ -1396,432 +1472,23 @@ class EmployeeListController extends Controller
         }
 
         // Generate the PDF
-        $pdf = PDF::loadView('admin.employeeLists.threeMonthsCircleDownload', compact('desig', 'userId', 'chunkReport'), [], [
-            'margin_top' => 20,
-            'margin_bottom' => 15,
-            'margin_left' => 18,
-            'margin_right' => 18,
-            'format' => 'A4',
-            'orientation' => 'landscape',
-            'default_font_size' => '15',
-            'default_font' => 'nsikosh',
-        ]);
+    $pdf = PDF::loadView('admin.employeeLists.threeMonthsQuotaDownload', compact('desig', 'userId', 'chunkReport'), [], [
+        'margin_top' => 20,
+        'margin_bottom' => 15,
+        'margin_left' => 18,
+        'margin_right' => 18,
+        'format' => 'A4',
+        'orientation' => 'landscape',
+        'default_font_size' => '15',
+        'default_font' => 'nsikosh',
+    ]);
 
-        // Return the PDF for download
-        return $pdf->download('three_month_report.pdf');
-    }
-
-    public function downloadThreeMonthsCirclOffice(Request $request)
-    {
-
-        $circle_id = $request->circle_id;
-        // dd($circle_id);
-
-        $desig = ForestState::find($circle_id);
-        // dd($desig);
-
-        $userId = Auth::id();
-        $threeMonthsReport = [];
-
-        // Fetch the user's info (forest_circle_id, forest_division_id)
-        $userInfo = User::select('forest_circle_id', 'forest_division_id')
-            ->where('id', $userId)
-            ->first();
-
-        $divisions = $userInfo->forest_division_id;
-        $circles = $userInfo->forest_circle_id;
-        $locale = App::getLocale();
-        $columname = $locale === 'bn' ? 'name_bn' : 'name_en';
-
-        $employeeQuery = EmployeeList::where('approve', 'Approved');
-
-
-        // Determine filtering logic based on user's circle/division
-        if ($circles && !$divisions) {
-            // Fetch employees in the same circle
-            $sameOfficeIds = User::where('forest_circle_id', $circles)->pluck('id');
-            $employeeQuery->whereIn('created_by', $sameOfficeIds);
-        } elseif (!$circles && $divisions) {
-            // Fetch employees in the same division
-            $sameOfficeIds = User::where('forest_division_id', $divisions)->pluck('id');
-            $employeeQuery->whereIn('created_by', $sameOfficeIds);
-        }
-
-        if ($circle_id) {
-            $same = User::where('forest_circle_id', $circle_id)->pluck('id');
-            $employeeQuery->whereIn('created_by', $same);
-        }
-
-        // Retrieve the data
-        $employeeList = $employeeQuery->get();
-
-        // Debug output (Remove or comment this in production)
-        // dd($employeeList);
-
-
-        // Split the employee list into chunks of 100
-        $chunks = $employeeList->chunk(100);
-
-
-        foreach ($chunks as $index => $chunk) {
-            $chunkReport = [];
-
-            foreach ($chunk as $employee) {
-                $jobHistories = [];
-                $trainingHistories = [];
-                $educationHistories = [];
-                $mamlaHistories = [];
-
-                // Process job histories
-                foreach ($employee->allJob as $job) {
-                    $workPlace_bn = '';
-                    $workPlace_en = '';
-
-                    if ($job->circle_list_id !== null && $job->division_list_id == null) {
-                        $workPlace_bn = $job->circle_list->name_bn ?? '';
-                        $workPlace_en = $job->circle_list->name_en ?? '';
-                    } elseif ($job->division_list_id !== null && $job->circle_list_id !== null) {
-                        $workPlace_bn = $job->division_list->name_bn ?? '';
-                        $workPlace_en = $job->division_list->name_en ?? '';
-                    } elseif ($job->level_2 !== null) {
-                        $workPlace_bn = $job->level_2 ?? '';
-                        $workPlace_en = $job->level_2 ?? '';
-                    } elseif ($job->academy_type !== null) {
-                        $workPlace_bn = $job->academy_type ?? '';
-                        $workPlace_en = $job->academy_type ?? '';
-                    } else {
-                        $workPlace_bn = $job->institutename ?? '';
-                        $workPlace_en = $job->institutename ?? '';
-                    }
-
-                    $jobHistories[] = [
-                        'work_place_bn' => $workPlace_bn,
-                        'work_place_en' => $workPlace_en,
-                        'start_date' => $job->joining_date ?? '',
-                        'end_date' => $job->release_date ?? '',
-                    ];
-                }
-
-                // Process training histories
-                foreach ($employee->training_list as $training) {
-                    $trainingHistories[] = [
-                        'training_name' => $training->training_name ?? '',
-                    ];
-                }
-
-                // Process education histories
-                foreach ($employee->educationHistory as $education) {
-                    $educationHistories[] = [
-                        'education_name_bn' => $education->examdegree->name_bn ?? '',
-                        'education_name_en' => $education->examdegree->name_en ?? '',
-                        'passing_year' => $education->passing_year ?? '',
-                        'board_name_bn' => $education->exam_board->name_bn ?? '',
-                        'board_name_en' => $education->exam_board->name_en ?? '',
-                    ];
-                }
-
-                // Process mamla histories
-                foreach ($employee->mamlaHistory as $mamla) {
-                    $mamlaHistories[] = [
-                        'mamla_name_bn' => $mamla->name_bn ?? '',
-                        'mamla_name_en' => $mamla->name_en ?? '',
-                        'mamla_start' => $mamla->mamla_start ?? '',
-                        'mamla_end' => $mamla->mamla_end ?? '',
-                        'comment' => $mamla->remzrk ?? '',
-                    ];
-                }
-
-                // Calculate total job duration
-                $totalDuration = Carbon::now()->diff(Carbon::createFromFormat('d/m/Y', $employee->fjoining_date));
-
-                $total_job_bn = sprintf('%d বছর, %d মাস, %d দিন', $totalDuration->y, $totalDuration->m, $totalDuration->d);
-                $total_job_en = sprintf('%d years, %d months, %d days', $totalDuration->y, $totalDuration->m, $totalDuration->d);
-
-                // Add all the details to the chunk report
-                $chunkReport[] = [
-                    'employee_name_bn' => $employee->fullname_bn ?? '',
-                    'employee_name_en' => $employee->fullname_en ?? '',
-                    'designation_bn' => $employee->designation->name_bn ?? '',
-                    'designation_en' => $employee->designation->name_en ?? '',
-                    'grade_bn' => $employee->grade->name_bn ?? '',
-                    'grade_en' => $employee->grade->name_en ?? '',
-                    'promotion_grade_bn' => $employee->promotion->grade->name_bn ?? '',
-                    'promotion_grade_en' => $employee->promotion->grade->name_en ?? '',
-                    'dob' => $employee->date_of_birth ?? '',
-                    'home_district_bn' => $employee->home_district->name_bn ?? '',
-                    'home_district_en' => $employee->home_district->name_en ?? '',
-                    'gender_bn' => $employee->gender->name_bn ?? '',
-                    'gender_en' => $employee->gender->name_en ?? '',
-                    'permanent_address_bn' => $employee->permanent->thana_upazila->name_bn ?? '',
-                    'permanent_village' => $employee->permanent->flat_house ?? '',
-                    'permanent_post' => $employee->permanent->post_office ?? '',
-                    'permanent_district_bn' => $employee->permanent->thana_upazila->district->name_bn ?? '',
-                    'permanent_district_en' => $employee->permanent->thana_upazila->district->name_en ?? '',
-                    'permanent_address_en' => $employee->permanent->thana_upazila->name_en ?? '',
-                    'present_address_bn' => $employee->present->thana_upazila->name_bn ?? '',
-                    'present_village' => $employee->present->flat_house ?? '',
-                    'present_post' => $employee->present->post_office ?? '',
-                    'present_district_bn' => $employee->present->thana_upazila->district->name_bn ?? '',
-                    'present_district_en' => $employee->present->thana_upazila->district->name_en ?? '',
-                    'present_address_en' => $employee->present->thana_upazila->name_en ?? '',
-                    'fjoining_date' => $employee->fjoining_date ?? '',
-                    'promotion_date' => $employee->promotion->go_issue_date ?? '',
-                    'circle_name_bn' => $employee->jobhistory->circle_list->name_bn ?? '',
-                    'circle_name_en' => $employee->jobhistory->circle_list->name_en ?? '',
-                    'office_name' => $employee->jobhistory->level_2 ?? '',
-                    'joining_date' => $employee->jobhistory->joining_date ?? '',
-                    'division_name_bn' => $employee->jobhistory->division_list->name_bn ?? '',
-                    'division_name_en' => $employee->jobhistory->division_list->name_en ?? '',
-                    'range_name_bn' => $employee->jobhistory->range_list->name_bn ?? '',
-                    'range_name_en' => $employee->jobhistory->range_list->name_en ?? '',
-                    'beat_name_bn' => $employee->jobhistory->beat_list->name_bn ?? '',
-                    'beat_name_en' => $employee->jobhistory->beat_list->name_en ?? '',
-                    'revenue_id' => $employee->projectrevenue_id ?? '',
-                    'project_id' => $employee->project_id ?? '',
-                    'project_name_bn' => $employee->project->name_bn ?? '',
-                    'project_name_en' => $employee->project->name_en ?? '',
-                    'job_histories' => $jobHistories,
-                    'total_job_bn' => $total_job_bn,
-                    'total_job_en' => $total_job_en,
-                    'quota_bn' => $employee->quota->name_bn ?? '',
-                    'quota_en' => $employee->quota->name_en ?? '',
-                    'relation_bn' => $employee->freedomfighter->name_bn ?? '',
-                    'relation_en' => $employee->freedomfighter->name_en ?? '',
-                    'fighter_name' => $employee->freedomfighter_name ?? '',
-                    'fighter_address' => $employee->freedomfighter_address ?? '',
-                    'fighter_number' => $employee->freedomfighter_go ?? '',
-                    'training_histories' => $trainingHistories,
-                    'education_histories' => $educationHistories,
-                    'mamla_histories' => $mamlaHistories,
-                    'prl_date' => $employee->prl_date ?? '',
-                ];
-            }
-        }
-
-        // Generate the PDF
-        $pdf = PDF::loadView('admin.employeeLists.threeMonthsCircleDownload', compact('desig', 'userId', 'chunkReport'), [], [
-            'margin_top' => 20,
-            'margin_bottom' => 15,
-            'margin_left' => 18,
-            'margin_right' => 18,
-            'format' => 'A4',
-            'orientation' => 'landscape',
-            'default_font_size' => '15',
-            'default_font' => 'nsikosh',
-        ]);
-
-        // Return the PDF for download
-        return $pdf->download('three_month_report.pdf');
+    // Return the PDF for download
+    return $pdf->download('three_month_report.pdf');
     }
 
 
-    public function downloadThreeMonthsDivision(Request $request)
-    {
-
-        $division_id = $request->division_id;
-        // dd($division_id);
-
-        $desig = ForestDivision::find($division_id);
-        // dd($desig);
-
-        $same = User::select('id')
-            ->where('forest_circle_id', $division_id)
-            ->pluck('id');
-        // dd($same);
-
-        $userId = Auth::id();
-        $threeMonthsReport = [];
-
-        // Fetch the user's info (forest_circle_id, forest_division_id)
-        $userInfo = User::select('forest_circle_id', 'forest_division_id')
-            ->where('id', $userId)
-            ->first();
-
-        $divisions = $userInfo->forest_division_id;
-        $circles = $userInfo->forest_circle_id;
-        $locale = App::getLocale();
-        $columname = $locale === 'bn' ? 'name_bn' : 'name_en';
-
-        $employeeQuery = EmployeeList::where('approve', 'Approved');
-
-
-        // Determine filtering logic based on user's circle/division
-        if ($circles && !$divisions) {
-            // Fetch employees in the same circle
-            $sameOfficeIds = User::where('forest_circle_id', $circles)->pluck('id');
-            $employeeQuery->whereIn('created_by', $sameOfficeIds);
-        } elseif (!$circles && $divisions) {
-            // Fetch employees in the same division
-            $sameOfficeIds = User::where('forest_division_id', $divisions)->pluck('id');
-            $employeeQuery->whereIn('created_by', $sameOfficeIds);
-        }
-
-        if ($division_id) {
-            $same = User::where('forest_division_id', $division_id)->pluck('id');
-            $employeeQuery->whereIn('created_by', $same);
-        }
-
-        // Retrieve the data
-        $employeeList = $employeeQuery->get();
-
-
-        // Split the employee list into chunks of 100
-        $chunks = $employeeList->chunk(100);
-
-
-        foreach ($chunks as $index => $chunk) {
-            $chunkReport = [];
-
-            foreach ($chunk as $employee) {
-                $jobHistories = [];
-                $trainingHistories = [];
-                $educationHistories = [];
-                $mamlaHistories = [];
-
-                // Process job histories
-                foreach ($employee->allJob as $job) {
-                    $workPlace_bn = '';
-                    $workPlace_en = '';
-
-                    if ($job->circle_list_id !== null && $job->division_list_id == null) {
-                        $workPlace_bn = $job->circle_list->name_bn ?? '';
-                        $workPlace_en = $job->circle_list->name_en ?? '';
-                    } elseif ($job->division_list_id !== null && $job->circle_list_id !== null) {
-                        $workPlace_bn = $job->division_list->name_bn ?? '';
-                        $workPlace_en = $job->division_list->name_en ?? '';
-                    } elseif ($job->level_2 !== null) {
-                        $workPlace_bn = $job->level_2 ?? '';
-                        $workPlace_en = $job->level_2 ?? '';
-                    } elseif ($job->academy_type !== null) {
-                        $workPlace_bn = $job->academy_type ?? '';
-                        $workPlace_en = $job->academy_type ?? '';
-                    } else {
-                        $workPlace_bn = $job->institutename ?? '';
-                        $workPlace_en = $job->institutename ?? '';
-                    }
-
-                    $jobHistories[] = [
-                        'work_place_bn' => $workPlace_bn,
-                        'work_place_en' => $workPlace_en,
-                        'start_date' => $job->joining_date ?? '',
-                        'end_date' => $job->release_date ?? '',
-                    ];
-                }
-
-                // Process training histories
-                foreach ($employee->training_list as $training) {
-                    $trainingHistories[] = [
-                        'training_name' => $training->training_name ?? '',
-                    ];
-                }
-
-                // Process education histories
-                foreach ($employee->educationHistory as $education) {
-                    $educationHistories[] = [
-                        'education_name_bn' => $education->examdegree->name_bn ?? '',
-                        'education_name_en' => $education->examdegree->name_en ?? '',
-                        'passing_year' => $education->passing_year ?? '',
-                        'board_name_bn' => $education->exam_board->name_bn ?? '',
-                        'board_name_en' => $education->exam_board->name_en ?? '',
-                    ];
-                }
-
-                // Process mamla histories
-                foreach ($employee->mamlaHistory as $mamla) {
-                    $mamlaHistories[] = [
-                        'mamla_name_bn' => $mamla->name_bn ?? '',
-                        'mamla_name_en' => $mamla->name_en ?? '',
-                        'mamla_start' => $mamla->mamla_start ?? '',
-                        'mamla_end' => $mamla->mamla_end ?? '',
-                        'comment' => $mamla->remzrk ?? '',
-                    ];
-                }
-
-                // Calculate total job duration
-                $totalDuration = Carbon::now()->diff(Carbon::createFromFormat('d/m/Y', $employee->fjoining_date));
-
-                $total_job_bn = sprintf('%d বছর, %d মাস, %d দিন', $totalDuration->y, $totalDuration->m, $totalDuration->d);
-                $total_job_en = sprintf('%d years, %d months, %d days', $totalDuration->y, $totalDuration->m, $totalDuration->d);
-
-                // Add all the details to the chunk report
-                $chunkReport[] = [
-                    'employee_name_bn' => $employee->fullname_bn ?? '',
-                    'employee_name_en' => $employee->fullname_en ?? '',
-                    'designation_bn' => $employee->designation->name_bn ?? '',
-                    'designation_en' => $employee->designation->name_en ?? '',
-                    'grade_bn' => $employee->grade->name_bn ?? '',
-                    'grade_en' => $employee->grade->name_en ?? '',
-                    'promotion_grade_bn' => $employee->promotion->grade->name_bn ?? '',
-                    'promotion_grade_en' => $employee->promotion->grade->name_en ?? '',
-                    'dob' => $employee->date_of_birth ?? '',
-                    'home_district_bn' => $employee->home_district->name_bn ?? '',
-                    'home_district_en' => $employee->home_district->name_en ?? '',
-                    'gender_bn' => $employee->gender->name_bn ?? '',
-                    'gender_en' => $employee->gender->name_en ?? '',
-                    'permanent_address_bn' => $employee->permanent->thana_upazila->name_bn ?? '',
-                    'permanent_village' => $employee->permanent->flat_house ?? '',
-                    'permanent_post' => $employee->permanent->post_office ?? '',
-                    'permanent_district_bn' => $employee->permanent->thana_upazila->district->name_bn ?? '',
-                    'permanent_district_en' => $employee->permanent->thana_upazila->district->name_en ?? '',
-                    'permanent_address_en' => $employee->permanent->thana_upazila->name_en ?? '',
-                    'present_address_bn' => $employee->present->thana_upazila->name_bn ?? '',
-                    'present_village' => $employee->present->flat_house ?? '',
-                    'present_post' => $employee->present->post_office ?? '',
-                    'present_district_bn' => $employee->present->thana_upazila->district->name_bn ?? '',
-                    'present_district_en' => $employee->present->thana_upazila->district->name_en ?? '',
-                    'present_address_en' => $employee->present->thana_upazila->name_en ?? '',
-                    'fjoining_date' => $employee->fjoining_date ?? '',
-                    'promotion_date' => $employee->promotion->go_issue_date ?? '',
-                    'circle_name_bn' => $employee->jobhistory->circle_list->name_bn ?? '',
-                    'circle_name_en' => $employee->jobhistory->circle_list->name_en ?? '',
-                    'office_name' => $employee->jobhistory->level_2 ?? '',
-                    'joining_date' => $employee->jobhistory->joining_date ?? '',
-                    'division_name_bn' => $employee->jobhistory->division_list->name_bn ?? '',
-                    'division_name_en' => $employee->jobhistory->division_list->name_en ?? '',
-                    'range_name_bn' => $employee->jobhistory->range_list->name_bn ?? '',
-                    'range_name_en' => $employee->jobhistory->range_list->name_en ?? '',
-                    'beat_name_bn' => $employee->jobhistory->beat_list->name_bn ?? '',
-                    'beat_name_en' => $employee->jobhistory->beat_list->name_en ?? '',
-                    'revenue_id' => $employee->projectrevenue_id ?? '',
-                    'project_id' => $employee->project_id ?? '',
-                    'project_name_bn' => $employee->project->name_bn ?? '',
-                    'project_name_en' => $employee->project->name_en ?? '',
-                    'job_histories' => $jobHistories,
-                    'total_job_bn' => $total_job_bn,
-                    'total_job_en' => $total_job_en,
-                    'quota_bn' => $employee->quota->name_bn ?? '',
-                    'quota_en' => $employee->quota->name_en ?? '',
-                    'relation_bn' => $employee->freedomfighter->name_bn ?? '',
-                    'relation_en' => $employee->freedomfighter->name_en ?? '',
-                    'fighter_name' => $employee->freedomfighter_name ?? '',
-                    'fighter_address' => $employee->freedomfighter_address ?? '',
-                    'fighter_number' => $employee->freedomfighter_go ?? '',
-                    'training_histories' => $trainingHistories,
-                    'education_histories' => $educationHistories,
-                    'mamla_histories' => $mamlaHistories,
-                    'prl_date' => $employee->prl_date ?? '',
-                ];
-            }
-        }
-
-        // Generate the PDF
-        $pdf = PDF::loadView('admin.employeeLists.threeMonthsDivisionDownload', compact('desig', 'userId', 'chunkReport'), [], [
-            'margin_top' => 20,
-            'margin_bottom' => 15,
-            'margin_left' => 18,
-            'margin_right' => 18,
-            'format' => 'A4',
-            'orientation' => 'landscape',
-            'default_font_size' => '15',
-            'default_font' => 'nsikosh',
-        ]);
-
-        // Return the PDF for download
-        return $pdf->download('three_month_report.pdf');
-    }
-
-
-    public function downloadThreeMonthsMultiple(Request $request)
+	public function downloadThreeMonthsMultiple(Request $request)
     {
 
         $division_id = $request->division_id;
@@ -1832,7 +1499,9 @@ class EmployeeListController extends Controller
         $districts = District::find($district_id);
         $designations = Designation::find($designation_id);
 
-        $userId = Auth::id();
+        $employeeQuery = EmployeeList::where('approve', 'Approved');
+
+		$userId = Auth::id();
 
         // Fetch the user's info (forest_circle_id, forest_division_id)
         $userInfo = User::select('forest_circle_id', 'forest_division_id')
@@ -1855,31 +1524,24 @@ class EmployeeListController extends Controller
             $sameOfficeIds = User::where('forest_division_id', $userDivision)->pluck('id');
             $employeeQuery->whereIn('created_by', $sameOfficeIds);
         }
-
-
-        if ($division_id) {
-            // Retrieve user IDs as a collection
+        if($division_id){
             $same = User::select('id')
-                ->where('forest_division_id', $division_id)
-                ->pluck('id'); // Returns a collection of IDs
+			->where('forest_division_id', $division_id)
+			->pluck('id');
 
-            // Apply 'whereIn' instead of 'where' for multiple IDs
             $employeeQuery->whereIn('created_by', $same);
-
-            // Debug the query
-            //dd($employeeQuery);
         }
 
-
-        if ($district_id) {
+        if($district_id){
             $employeeQuery->where('home_district_id', $district_id);
         }
 
-        if ($designation_id) {
+        if($designation_id){
             $employeeQuery->where('designation_id', $designation_id);
         }
 
         $threeMonthsReport = [];
+        $userId = Auth::id();
         $locale = App::getLocale();
         $columname = $locale === 'bn' ? 'name_bn' : 'name_en';
 
@@ -1940,7 +1602,6 @@ class EmployeeListController extends Controller
                     $educationHistories[] = [
                         'education_name_bn' => $education->examdegree->name_bn ?? '',
                         'education_name_en' => $education->examdegree->name_en ?? '',
-                        'passing_year' => $education->passing_year ?? '',
                         'board_name_bn' => $education->exam_board->name_bn ?? '',
                         'board_name_en' => $education->exam_board->name_en ?? '',
                     ];
@@ -1977,19 +1638,19 @@ class EmployeeListController extends Controller
                     'home_district_bn' => $employee->home_district->name_bn ?? '',
                     'home_district_en' => $employee->home_district->name_en ?? '',
                     'gender_bn' => $employee->gender->name_bn ?? '',
-                    'gender_en' => $employee->gender->name_en ?? '',
-                    'permanent_address_bn' => $employee->permanent->thana_upazila->name_bn ?? '',
-                    'permanent_village' => $employee->permanent->flat_house ?? '',
-                    'permanent_post' => $employee->permanent->post_office ?? '',
-                    'permanent_district_bn' => $employee->permanent->thana_upazila->district->name_bn ?? '',
-                    'permanent_district_en' => $employee->permanent->thana_upazila->district->name_en ?? '',
-                    'permanent_address_en' => $employee->permanent->thana_upazila->name_en ?? '',
-                    'present_address_bn' => $employee->present->thana_upazila->name_bn ?? '',
-                    'present_village' => $employee->present->flat_house ?? '',
-                    'present_post' => $employee->present->post_office ?? '',
-                    'present_district_bn' => $employee->present->thana_upazila->district->name_bn ?? '',
-                    'present_district_en' => $employee->present->thana_upazila->district->name_en ?? '',
-                    'present_address_en' => $employee->present->thana_upazila->name_en ?? '',
+                'gender_en' => $employee->gender->name_en ?? '',
+                'permanent_address_bn' => $employee->permanent->thana_upazila->name_bn ?? '',
+                'permanent_village' => $employee->permanent->flat_house ?? '',
+                'permanent_post' => $employee->permanent->post_office ?? '',
+                'permanent_district_bn' => $employee->permanent->thana_upazila->district->name_bn ?? '',
+                'permanent_district_en' => $employee->permanent->thana_upazila->district->name_en ?? '',
+                'permanent_address_en' => $employee->permanent->thana_upazila->name_en ?? '',
+                'present_address_bn' => $employee->present->thana_upazila->name_bn ?? '',
+                'present_village' => $employee->present->flat_house ?? '',
+                'present_post' => $employee->present->post_office ?? '',
+                'present_district_bn' => $employee->present->thana_upazila->district->name_bn ?? '',
+                'present_district_en' => $employee->present->thana_upazila->district->name_en ?? '',
+                'present_address_en' => $employee->present->thana_upazila->name_en ?? '',
                     'fjoining_date' => $employee->fjoining_date ?? '',
                     'promotion_date' => $employee->promotion->go_issue_date ?? '',
                     'circle_name_bn' => $employee->jobhistory->circle_list->name_bn ?? '',
@@ -2009,13 +1670,13 @@ class EmployeeListController extends Controller
                     'job_histories' => $jobHistories,
                     'total_job_bn' => $total_job_bn,
                     'total_job_en' => $total_job_en,
-                    'quota_bn' => $employee->quota->name_bn ?? '',
-                    'quota_en' => $employee->quota->name_en ?? '',
-                    'relation_bn' => $employee->freedomfighter->name_bn ?? '',
-                    'relation_en' => $employee->freedomfighter->name_en ?? '',
-                    'fighter_name' => $employee->freedomfighter_name ?? '',
-                    'fighter_address' => $employee->freedomfighter_address ?? '',
-                    'fighter_number' => $employee->freedomfighter_go ?? '',
+                    'quota_bn' => $employee->quota->name_bn ??  '',
+                    'quota_en' => $employee->quota->name_en ??  '',
+                    'relation_bn' => $employee->freedomfighter->name_bn ??  '',
+                    'relation_en' => $employee->freedomfighter->name_en ??  '',
+                    'fighter_name' => $employee->freedomfighter_name ??  '',
+                    'fighter_address' => $employee->freedomfighter_address ??  '',
+                    'fighter_number' => $employee->freedomfighter_go ??  '',
                     'training_histories' => $trainingHistories,
                     'education_histories' => $educationHistories,
                     'mamla_histories' => $mamlaHistories,
@@ -2025,29 +1686,457 @@ class EmployeeListController extends Controller
         }
 
         // Generate the PDF
-        $pdf = PDF::loadView('admin.employeeLists.threeMonthsMultipleDownload', compact('divisions', 'districts', 'designations', 'userId', 'chunkReport'), [], [
-            'margin_top' => 20,
-            'margin_bottom' => 15,
-            'margin_left' => 18,
-            'margin_right' => 18,
-            'format' => 'A4',
-            'orientation' => 'landscape',
-            'default_font_size' => '15',
-            'default_font' => 'nsikosh',
-        ]);
+    $pdf = PDF::loadView('admin.employeeLists.threeMonthsMultipleDownload', compact('divisions','districts', 'designations', 'userId', 'chunkReport'), [], [
+        'margin_top' => 20,
+        'margin_bottom' => 15,
+        'margin_left' => 18,
+        'margin_right' => 18,
+        'format' => 'A4',
+        'orientation' => 'landscape',
+        'default_font_size' => '15',
+        'default_font' => 'nsikosh',
+    ]);
 
-        // Return the PDF for download
-        return $pdf->download('three_month_report.pdf');
+    // Return the PDF for download
+    return $pdf->download('three_month_report.pdf');
     }
 
+	public function transfer()
+	{
+		$userId = Auth::id();
+
+		// Get the user info (circle and division)
+		$userInfo = User::select('forest_circle_id', 'forest_division_id')
+						->where('id', $userId)
+						->first();
+
+		$employeeid = Session::get('id');  // Get the employee ID from the session
+
+		// Extract circle and division from user info
+		$divisions = $userInfo->forest_division_id;
+		$circles = $userInfo->forest_circle_id;
+
+		// Set column name based on locale
+		$locale = App::getLocale();
+		$columname = $locale === 'bn' ? 'name_bn' : 'name_en';
+
+		// Get division and circle lists for dropdowns
+		$divisionList = ForestDivision::pluck($columname, 'id')->prepend(trans('global.pleaseSelect'), '');
+		$circleList = ForestState::pluck($columname, 'id')->prepend(trans('global.pleaseSelect'), '');
+		$exemptionType = ExemptionType::pluck($columname, 'id')->prepend(trans('global.pleaseSelect'), '');
+
+		// Initialize the base query for EmployeeList
+		$query = EmployeeList::with('designation')->where('approve', 'Approved')->where('status',1);
+
+		// Filter by employee ID if set in session
+		if ($employeeid) {
+			$query->where('employeeid', $employeeid);
+		}
+
+		// Conditionally add filters for circle or division
+		if ($circles !== null) {
+			// If user has a circle assigned, filter by users in the same circle
+			$sameOfficeIds = User::where('forest_circle_id', $circles)->pluck('id');
+			$query->whereIn('created_by', $sameOfficeIds);
+		} elseif ($divisions !== null) {
+			// If user has a division assigned, filter by users in the same division
+			$sameOfficeIds = User::where('forest_division_id', $divisions)->pluck('id');
+			$query->whereIn('created_by', $sameOfficeIds);
+		}
+
+		// Fetch paginated data and total count in a single query
+		$data = $query->paginate(10);
+		$total = $data->total();  // Get total number of records
+
+		// Return the view with the necessary data
+		return view('admin.employeeLists.transfer', compact('exemptionType','divisionList', 'circleList', 'data', 'total'));
+	}
+
+
+	public function search_employee_transfer(Request $request)
+	{
+		// Save the employee ID in session
+		Session::put('id', $request->input('id'));
+
+		// Clear any previous designation filter if present
+		Session::forget('designation_id');
+
+		return redirect()->route('admin.transfer');
+	}
+
+
+	public function transferConfirm(Request $request , $id)
+	{
+		//dd($id);
+		//dd($request->all());
+
+		$division_id = $request->division_id;
+		//dd($division_id);
+		$circle_id = $request->circle_id;
+		//dd($circle_id);
+
+		$old_user = EmployeeList::where('id',$id)->first();
+		//dd($old_user);
+		$old_user_id = $old_user->created_by;
+		//dd($old_user_id);
+
+		if($division_id == null && $circle_id !== null)
+		{
+			$user = User::where('forest_circle_id', $circle_id)->first();
+			//dd($user);
+
+			$user_id = $user->id;
+
+			$log = new TransferLog();
+
+			$log->employee_id = $id;
+			$log->previous_office_id = $old_user_id;
+			$log->division_id = null;
+			$log->circle_id = $user_id;
+			$log->comment = $request->comment;
+
+			$log->save();
+		}elseif($division_id !== null && $circle_id == null){
+			$user = User::where('forest_division_id', $division_id)->first();
+			//dd($user);
+			$user_id = $user->id;
+
+			$log = new TransferLog();
+
+			$log->employee_id = $id;
+			$log->previous_office_id = $old_user_id;
+			$log->division_id = $user_id;
+			$log->circle_id = null;
+			$log->comment = $request->comment;
+
+			$log->save();
+		}else{
+			return redirect()->back()->with('error', 'সার্কেল অথবা ডিভিশন যেকোন একটি নির্বাচন করতে হবে।');
+		}
+
+
+
+		EmployeeList::where('id', $id)->update(['created_by' => $user_id]);
+
+
+
+		return redirect()->back()->with('success', 'স্থানান্তরটি সফলভাবে সম্পন্ন হয়েছে।');
+
+	}
+
+
+
+	public function exemption_confirm(Request $request , $id)
+	{
+		//dd($id);
+		//dd($request->all());
+
+		$exemption_id = $request->input('exemption_id');
+
+		$old_user = EmployeeList::where('id',$id)->first();
+		//dd($old_user);
+		$old_user_id = $old_user->created_by;
+		//dd($old_user_id);
+
+		$old_user->update([
+			'status' => 2,
+		]);
+
+		$log = new ExemptionLog();
+
+		$log->user_id = Auth::id();
+		$log->exemption_id = $exemption_id;
+		$log->comment = $request->input('comment');
+		$log->employee_id = $id;
+
+		$log->save();
+
+
+		return redirect()->back()->with('success', 'অব্যাহতিটি সফলভাবে সম্পন্ন হয়েছে।');
+
+	}
+
+	public function exemption_cancel($id)
+	{
+		$data= ExemptionLog::find($id);
+
+		$employee_id = $data->employee_id;
+
+		$data->delete();
+
+		EmployeeList::find($employee_id)->update(['status' => 1]);
+
+		return redirect()->back()->with('success', 'অব্যাহতিটি সফলভাবে স্থগিত হয়েছে।');
+	}
+
+
+	public function exemptionList()
+	{
+
+		$data = ExemptionLog::paginate(10);
+
+
+		$total = $data->total();
+
+
+		return view('admin.employeeLists.exemptionList', compact('data', 'total'));
+	}
+
+
+	public function transferList()
+	{
+		$userId = Auth::id();
+	//dd($userId);
+
+    $userInfo = User::select('forest_circle_id', 'forest_division_id')
+                ->where('id', $userId)
+                ->first();
+	$divisions= $userInfo->forest_division_id;
+	// dd($divisions);
+	$circles= $userInfo->forest_circle_id;
+	//dd($circles);
+
+
+
+    if ($circles !== null && $divisions == null) {
+		//dd('User');
+		$sameOfficeIds = User::select('id')
+			->where('forest_circle_id', $circles)
+			->pluck('id');
+			//dd($sameOfficeIds);
+
+		// Now use whereIn to filter employees created by those IDs
+		$data = TransferLog::whereIn('previous_office_id', $sameOfficeIds)
+			->paginate(10);
+
+		$total = $data->total(); // `total()` gives the total number of results for the pagination
+
+		return view('admin.employeeLists.transferList', compact('data', 'total'));
+		}
+	elseif ($circles == null && $divisions !== null) {
+		//dd('User');
+		$sameOfficeIds = User::select('id')
+			->where('forest_division_id', $divisions)
+			->pluck('id');
+			//dd($sameOfficeIds);
+
+		// Now use whereIn to filter employees created by those IDs
+		$data = TransferLog::whereIn('previous_office_id', $sameOfficeIds)
+			->paginate(10);
+
+		$total = $data->total(); // `total()` gives the total number of results for the pagination
+
+		return view('admin.employeeLists.transferList', compact('data', 'total'));
+		}
+	else {
+		//dd('Admin');
+        $data = TransferLog::paginate(10);
+
+        $total = $data->count();
+
+        return view('admin.employeeLists.transferList', compact('data', 'total'));
+    }
+	}
+
+
+	public function three_months_report()
+{
+    $userId = Auth::id();
+$threeMonthsReport = [];
+$designations = Designation::all();
+$districts = District::all();
+
+// Fetch user information
+$userInfo = User::select('forest_circle_id', 'forest_division_id')
+    ->where('id', $userId)
+    ->first();
+
+$divisions = $userInfo->forest_division_id;
+$circles = $userInfo->forest_circle_id;
+
+$locale = App::getLocale();
+$columnName = $locale === 'bn' ? 'name_bn' : 'name_en';
+
+$designationId = Session::get('designation_id');
+$districtId = Session::get('district_id'); // Fetch designation from session
+
+if ($circles !== null && $divisions === null) {
+    $sameOfficeIds = User::select('id')
+        ->where('forest_circle_id', $circles)
+        ->pluck('id');
+
+    $query = EmployeeList::whereIn('created_by', $sameOfficeIds)
+        ->where('approve', 'Approved');
+} elseif ($circles === null && $divisions !== null) {
+    $sameOfficeIds = User::select('id')
+        ->where('forest_division_id', $divisions)
+        ->pluck('id');
+
+    $query = EmployeeList::whereIn('created_by', $sameOfficeIds)
+        ->where('approve', 'Approved');
+} else {
+    $query = EmployeeList::where('approve', 'Approved');
+}
+
+// Add the `designation_id` filter if it exists in the session
+if ($designationId) {
+    $query->where('designation_id', $designationId);
+}
+
+if ($districtId) {
+    $query->where('home_district_id', $districtId);
+}
+
+// Get paginated results
+$employeeList = $query->paginate(10);
 
 
 
 
 
 
+    foreach ($employeeList as $employee) {
 
-    public function seniority_list_report()
+        $jobHistories = [];
+        $trainingHistories = [];
+        $educationHistories = [];
+		$mamlaHistories = [];
+
+        // Process job histories
+        foreach ($employee->allJob as $job) {
+            if ($job->circle_list_id !== null && $job->division_list_id == null) {
+                $workPlace_bn = $job->circle_list->name_bn ?? '';
+                $workPlace_en = $job->circle_list->name_en ?? '';
+            } elseif ($job->division_list_id !== null && $job->circle_list_id !== null) {
+                $workPlace_bn = $job->division_list->name_bn ?? '';
+                $workPlace_en = $job->division_list->name_en ?? '';
+            } elseif ($job->level_2 !== null) {
+                $workPlace_bn = $job->level_2 ?? '';
+                $workPlace_en = $job->level_2 ?? '';
+            } elseif ($job->academy_type !== null) {
+                $workPlace_bn = $job->academy_type ?? '';
+                $workPlace_en = $job->academy_type ?? '';
+            } else {
+                $workPlace_bn = $job->institutename ?? '';
+                $workPlace_en = $job->institutename ?? '';
+            }
+
+            $jobHistories[] = [
+                'work_place_bn' => $workPlace_bn,
+                'work_place_en' => $workPlace_en,
+                'start_date' => $job->joining_date ?? '',
+                'end_date' => $job->release_date ?? '',
+            ];
+        }
+
+        // Process training histories
+        foreach ($employee->training_list as $training) {
+            $trainingHistories[] = [
+                'training_name' => $training->training_name ?? '',
+            ];
+        }
+
+        // Process education histories
+        foreach ($employee->educationHistory as $education) {
+            $educationHistories[] = [
+                'education_name_bn' => $education->name_of_exam->name_bn ?? '',
+                'education_name_en' => $education->name_of_exam->name_en ?? '',
+            ];
+        }
+
+		// Process mamla histories
+        foreach ($employee->mamlaHistory as $mamla) {
+            $mamlaHistories[] = [
+                'mamla_name_bn' => $mamla->name_bn ?? '',
+                'mamla_name_en' => $mamla->name_en ?? '',
+				'mamla_start' => $mamla->mamla_start ?? '',
+				'mamla_end' => $mamla->mamla_end ?? '',
+				'comment' => $mamla->remzrk ?? '',
+            ];
+        }
+
+        // Calculate total job duration
+        $totalDuration = Carbon::now()->diff(Carbon::createFromFormat('d/m/Y', $employee->fjoining_date));
+
+        $total_job_bn = sprintf('%d বছর, %d মাস, %d দিন', $totalDuration->y, $totalDuration->m, $totalDuration->d);
+        $total_job_en = sprintf('%d years, %d months, %d days', $totalDuration->y, $totalDuration->m, $totalDuration->d);
+
+        // Add all the details to the report
+        $threeMonthsReport[] = [
+            'employee_name_bn' => $employee->fullname_bn ?? '',
+            'employee_name_en' => $employee->fullname_en ?? '',
+            'designation_bn' => $employee->designation->name_bn ?? '',
+            'designation_en' => $employee->designation->name_en ?? '',
+            'grade_bn' => $employee->grade->name_bn ?? '',
+            'grade_en' => $employee->grade->name_en ?? '',
+            'promotion_grade_bn' => $employee->promotion->grade->name_bn ?? '',
+            'promotion_grade_en' => $employee->promotion->grade->name_en ?? '',
+            'dob' => $employee->date_of_birth ?? '',
+            'home_district_bn' => $employee->home_district->name_bn ?? '',
+            'home_district_en' => $employee->home_district->name_en ?? '',
+            'permanent_address_bn' => $employee->permanent->thana_upazila->name_bn ?? '',
+            'permanent_address_en' => $employee->permanent->thana_upazila->name_en ?? '',
+            'present_address_bn' => $employee->present->thana_upazila->name_bn ?? '',
+            'present_address_en' => $employee->present->thana_upazila->name_en ?? '',
+            'fjoining_date' => $employee->fjoining_date ?? '',
+            'promotion_date' => $employee->promotion->go_issue_date ?? '',
+            'circle_name_bn' => $employee->jobhistory->circle_list->name_bn ?? '',
+            'circle_name_en' => $employee->jobhistory->circle_list->name_en ?? '',
+            'office_name' => $employee->jobhistory->level_2 ?? '',
+            'joining_date' => $employee->jobhistory->joining_date ?? '',
+            'division_name_bn' => $employee->jobhistory->division_list->name_bn ?? '',
+            'division_name_en' => $employee->jobhistory->division_list->name_en ?? '',
+            'range_name_bn' => $employee->jobhistory->range_list->name_bn ?? '',
+            'range_name_en' => $employee->jobhistory->range_list->name_en ?? '',
+            'beat_name_bn' => $employee->jobhistory->beat_list->name_bn ?? '',
+            'beat_name_en' => $employee->jobhistory->beat_list->name_en ?? '',
+            'revenue_id' => $employee->projectrevenue_id ?? '',
+            'project_id' => $employee->project_id ?? '',
+            'project_name_bn' => $employee->project->name_bn ?? '',
+            'project_name_en' => $employee->project->name_en ?? '',
+            'job_histories' => $jobHistories,
+            'total_job_bn' => $total_job_bn,
+            'total_job_en' => $total_job_en,
+            'quota_bn' => $employee->quota->name_bn ??  '',
+            'quota_en' => $employee->quota->name_en ??  '',
+            'relation_bn' => $employee->freedomfighter->name_bn ??  '',
+            'relation_en' => $employee->freedomfighter->name_en ??  '',
+            'fighter_name' => $employee->freedomfighter_name ??  '',
+            'fighter_address' => $employee->freedomfighter_address ??  '',
+            'fighter_number' => $employee->freedomfighter_go ??  '',
+            'training_histories' => $trainingHistories,
+            'education_histories' => $educationHistories,
+			'mamla_histories' => $mamlaHistories,
+			'prl_date' => $employee->prl_date ?? '',
+        ];
+    }
+
+    return view('admin.employeeLists.threeMonthsReport', compact('districts','designations','userId', 'threeMonthsReport'));
+}
+
+	public function search_designation_three(Request $request)
+	{
+		// Save the designation ID in session
+		Session::put('designation_id', $request->input('designation_id'));
+
+		// Clear any previous employee ID filter if present
+		// Session::forget('designation_id');
+
+		return redirect()->route('admin.three_months_report');
+	}
+
+	public function search_district_three(Request $request)
+	{
+		// Save the designation ID in session
+		Session::put('district_id', $request->input('district_id'));
+
+		// Clear any previous employee ID filter if present
+		// Session::forget('district_id');
+
+		return redirect()->route('admin.three_months_report');
+	}
+
+	public function seniority_list_report()
     {
         $designations = Designation::all();
 
@@ -2056,24 +2145,142 @@ class EmployeeListController extends Controller
 
 
     public function downloadSeniorityListDesignation(Request $request)
-    {
-        $designation_ids = $request->input('designation_id', []); // Retrieve multiple designation IDs as an array
+{
+    $designation_ids = $request->input('designation_id', []); // Retrieve multiple designation IDs as an array
 
-        $seniorityListReport = [];
+    $seniorityListReport = [];
 
-        // Fetch the selected designations
-        $designations = Designation::whereIn('id', $designation_ids)->get();
+    // Fetch the selected designations
+    $designations = Designation::whereIn('id', $designation_ids)->get();
 
-        // Check if designation IDs are provided
-        $employeeQuery = EmployeeList::where('approve', 'approved');
-        if (!empty($designation_ids)) {
-            $employeeQuery->whereIn('designation_id', $designation_ids); // Filter employees by multiple designation IDs
+    $userId = Auth::id();
+
+        // Fetch the user's info (forest_circle_id, forest_division_id)
+        $userInfo = User::select('forest_circle_id', 'forest_division_id')
+            ->where('id', $userId)
+            ->first();
+
+        $userDivision = $userInfo->forest_division_id;
+        $userCircle = $userInfo->forest_circle_id;
+
+        $employeeQuery = EmployeeList::where('approve', 'Approved');
+
+
+        // Determine filtering logic based on user's circle/division
+        if ($userCircle && !$userDivision) {
+            // Fetch employees in the same circle
+            $sameOfficeIds = User::where('forest_circle_id', $userCircle)->pluck('id');
+            $employeeQuery->whereIn('created_by', $sameOfficeIds);
+        } elseif (!$userCircle && $userDivision) {
+            // Fetch employees in the same division
+            $sameOfficeIds = User::where('forest_division_id', $userDivision)->pluck('id');
+            $employeeQuery->whereIn('created_by', $sameOfficeIds);
+        }
+    if (!empty($designation_ids)) {
+        $employeeQuery->whereIn('designation_id', $designation_ids); // Filter employees by multiple designation IDs
+    }
+
+    $employeeList = $employeeQuery->get();
+
+    foreach ($employeeList as $employee) {
+
+        $trainingNames = $employee->training_list->pluck('training_name')->toArray();
+        $institutions = $employee->training_list->pluck('institute_name')->toArray();
+
+        $trainingInfo = [];
+        for ($i = 0; $i < count($trainingNames); $i++) {
+            $trainingInfo[] = [
+                'training_name' => $trainingNames[$i],
+                'institute' => $institutions[$i] ?? '',
+            ];
         }
 
-        $employeeList = $employeeQuery->get();
+        $seniorityListReport[] = [
+            'employee_name_bn' => $employee->fullname_bn ?? '',
+            'employee_name_en' => $employee->fullname_en ?? '',
+            'designation_bn' => $employee->designation->name_bn ?? '',
+            'designation_en' => $employee->designation->name_en ?? '',
+            'fjoining_date' => $employee->fjoining_date ?? '',
+            'dob' => $employee->date_of_birth ?? '',
+            'home_district_bn' => $employee->home_district->name_bn ?? '',
+            'home_district_en' => $employee->home_district->name_en ?? '',
+            'revenue_id' => $employee->projectrevenue_id ?? '',
+            'project_id' => $employee->project_id ?? '',
+            'promotion_date' => $employee->promotion->go_issue_date ?? '',
+            'regularization_date' => $employee->date_of_regularization ?? '',
+            'training_info' => $trainingInfo,
+            'circle_name_bn' => $employee->jobhistory->circle_list->name_bn ?? '',
+            'circle_name_en' => $employee->jobhistory->circle_list->name_en ?? '',
+            'office_name' => $employee->jobhistory->level_2 ?? '',
+            'joining_date' => $employee->jobhistory->joining_date ?? '',
+            'division_name_bn' => $employee->jobhistory->division_list->name_bn ?? '',
+            'division_name_en' => $employee->jobhistory->division_list->name_en ?? '',
+            'range_name_bn' => $employee->jobhistory->range_list->name_bn ?? '',
+            'range_name_en' => $employee->jobhistory->range_list->name_en ?? '',
+            'beat_name_bn' => $employee->jobhistory->beat_list->name_bn ?? '',
+            'beat_name_en' => $employee->jobhistory->beat_list->name_en ?? '',
+            'joining_type_bn' => $employee->projectrevenue->project_revenue_bn ?? '',
+            'joining_type_en' => $employee->projectrevenue->project_revenue_en ?? '',
+            'project_name_bn' => $employee->project->name_bn ?? '',
+            'project_name_en' => $employee->project->name_en ?? '',
+        ];
+    }
 
-        foreach ($employeeList as $employee) {
+    // Load the view into a PDF
+    $pdf = PDF::loadView('admin.employeeLists.seniorityReportDesignation', compact('seniorityListReport', 'designations'), [], [
+        'margin_top' => 20,
+        'margin_bottom' => 15,
+        'margin_left' => 18,
+        'margin_right' => 18,
+        'format' => 'A4',
+        'orientation' => 'landscape',
+        'default_font_size' => '15',
+        'default_font' => 'nsikosh',
+    ]);
 
+    $fileName = date('Y-m-d') . 'seniorityListReport.pdf';
+
+    // Stream the PDF
+    return $pdf->stream($fileName);
+}
+
+
+
+	public function seniority_list_report_download()
+{
+    ini_set('pcre.backtrack_limit', '5000000');
+    ini_set('pcre.recursion_limit', '5000000');
+
+    $userId = Auth::id();
+    $userInfo = User::select('forest_circle_id', 'forest_division_id')->find($userId);
+
+    $userDivision = $userInfo->forest_division_id;
+    $userCircle = $userInfo->forest_circle_id;
+
+    $employeeQuery = EmployeeList::where('approve', 'Approved');
+
+    // Filter by circle or division
+    if ($userCircle && !$userDivision) {
+        $sameOfficeIds = User::where('forest_circle_id', $userCircle)->pluck('id');
+        $employeeQuery->whereIn('created_by', $sameOfficeIds);
+    } elseif (!$userCircle && $userDivision) {
+        $sameOfficeIds = User::where('forest_division_id', $userDivision)->pluck('id');
+        $employeeQuery->whereIn('created_by', $sameOfficeIds);
+    }
+
+    // Chunk the data (100 per file)
+    $chunks = $employeeQuery->get()->chunk(100);
+    $pdfPaths = [];
+
+    // File naming
+    $date = now()->format('Y-m-d_H-i-s');
+    $zipFileName = "seniorityListReports_{$date}.zip";
+    $zipFullPath = storage_path("app/public/{$zipFileName}");
+
+    foreach ($chunks as $index => $chunk) {
+        $seniorityListReport = [];
+
+        foreach ($chunk as $employee) {
             $trainingNames = $employee->training_list->pluck('training_name')->toArray();
             $institutions = $employee->training_list->pluck('institute_name')->toArray();
 
@@ -2116,8 +2323,8 @@ class EmployeeListController extends Controller
             ];
         }
 
-        // Load the view into a PDF
-        $pdf = PDF::loadView('admin.employeeLists.seniorityReportDesignation', compact('seniorityListReport', 'designations'), [], [
+        // Generate PDF for current chunk
+        $pdf = PDF::loadView('admin.employeeLists.seniorityListReportDownload', compact('seniorityListReport'), [], [
             'margin_top' => 20,
             'margin_bottom' => 15,
             'margin_left' => 18,
@@ -2128,391 +2335,245 @@ class EmployeeListController extends Controller
             'default_font' => 'nsikosh',
         ]);
 
-        $fileName = date('Y-m-d') . 'seniorityListReport.pdf';
-
-        // Stream the PDF
-        return $pdf->stream($fileName);
+        $pdfName = "seniorityListReport_" . ($index + 1) . ".pdf";
+        $pdfPath = storage_path("app/public/{$pdfName}");
+        $pdf->save($pdfPath);
+        $pdfPaths[] = $pdfPath;
     }
 
-    public function downloadSeniorityListDesignationExcel(Request $request)
-{
-    $designation_ids = $request->input('designation_id', []);
-    $seniorityListReport = [];
-
-    $employeeQuery = EmployeeList::where('approve', 'approved');
-    if (!empty($designation_ids)) {
-        $employeeQuery->whereIn('designation_id', $designation_ids);
+    // Zip all PDFs
+    $zip = new \ZipArchive();
+    if ($zip->open($zipFullPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE)) {
+        foreach ($pdfPaths as $pdfPath) {
+            $zip->addFile($pdfPath, basename($pdfPath));
+        }
+        $zip->close();
     }
 
-    $employeeList = $employeeQuery->get();
-
-    foreach ($employeeList as $employee) {
-        $trainingNames = $employee->training_list->pluck('training_name')->toArray();
-
-        $seniorityListReport[] = [
-            'Employee Name (BN)' => $employee->fullname_bn ?? '',
-            'Employee Name (EN)' => $employee->fullname_en ?? '',
-            'Designation (BN)' => $employee->designation->name_bn ?? '',
-            'Designation (EN)' => $employee->designation->name_en ?? '',
-            'Date of Birth' => $employee->date_of_birth ?? '',
-            'First Joining Date' => $employee->fjoining_date ?? '',
-            'Promotion Date' => $employee->promotion->go_issue_date ?? '',
-            'Regularization Date' => $employee->date_of_regularization ?? '',
-            'Home District (BN)' => $employee->home_district->name_bn ?? '',
-            'Home District (EN)' => $employee->home_district->name_en ?? '',
-            'Project/Revenue Type (BN)' => $employee->projectrevenue->project_revenue_bn ?? '',
-            'Project/Revenue Type (EN)' => $employee->projectrevenue->project_revenue_en ?? '',
-            'Project Name (BN)' => $employee->project->name_bn ?? '',
-            'Project Name (EN)' => $employee->project->name_en ?? '',
-            'Training Names' => implode(', ', $trainingNames),
-            'Circle (EN)' => $employee->jobhistory->circle_list->name_en ?? '',
-            'Division (EN)' => $employee->jobhistory->division_list->name_en ?? '',
-            'Range (EN)' => $employee->jobhistory->range_list->name_en ?? '',
-            'Beat (EN)' => $employee->jobhistory->beat_list->name_en ?? '',
-            'Current Office' => $employee->jobhistory->level_2 ?? '',
-        ];
+    // Remove individual PDFs after zipping
+    foreach ($pdfPaths as $pdfPath) {
+        if (file_exists($pdfPath)) {
+            unlink($pdfPath);
+        }
     }
 
-    // Create a spreadsheet and fill with data
-    $spreadsheet = new Spreadsheet();
-    $sheet = $spreadsheet->getActiveSheet();
-
-    // Add headings
-    if (!empty($seniorityListReport)) {
-        $sheet->fromArray(array_keys($seniorityListReport[0]), NULL, 'A1');
-        $sheet->fromArray($seniorityListReport, NULL, 'A2');
-    }
-
-    // Output the file as a download
-    $writer = new Xlsx($spreadsheet);
-    $fileName = 'seniority_list_' . date('Y-m-d') . '.xlsx';
-
-    return response()->streamDownload(function () use ($writer) {
-        $writer->save('php://output');
-    }, $fileName, [
-        'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    ]);
+    // Return zipped file
+    return response()->download($zipFullPath)->deleteFileAfterSend(true);
 }
 
 
 
 
 
-    public function seniority_list_report_download()
-    {
-        ini_set('max_execution_time', 1800); // 30 minutes
-    ini_set('memory_limit', '1024M');
-    set_time_limit(1800);
-    ini_set('pcre.backtrack_limit', '10000000');
 
-        $seniorityListReport = [];
-        $employeeList = EmployeeList::where('approve', 'approved')->get();
+	public function downloadThreeMonthsReport()
+{
+    $userId = Auth::id();
+    $threeMonthsReport = [];
 
-        // Split employee list into chunks of 100
-        $chunks = $employeeList->chunk(500);
-        $zipFileName = 'seniorityListReports_' . date('Y-m-d') . '.zip';
-        $zipPath = storage_path('app/public/' . $zipFileName);
-        $pdfPaths = [];
+    // Fetch the user's info (forest_circle_id, forest_division_id)
+    $userInfo = User::select('forest_circle_id', 'forest_division_id')
+                    ->where('id', $userId)
+                    ->first();
 
-        // Iterate through chunks
-        foreach ($chunks as $chunkIndex => $chunk) {
-            $seniorityListReport = [];
+    $divisions = $userInfo->forest_division_id;
+    $circles = $userInfo->forest_circle_id;
+    $locale = App::getLocale();
+    $columname = $locale === 'bn' ? 'name_bn' : 'name_en';
 
-            foreach ($chunk as $employee) {
-                $trainingNames = $employee->training_list->pluck('training_name')->toArray();
-                $institutions = $employee->training_list->pluck('institute_name')->toArray();
+    // Fetch employee data based on circle/division (No pagination)
+    if ($circles !== null && $divisions == null) {
+        // Fetch employees in the same circle
+        $sameOfficeIds = User::select('id')
+            ->where('forest_circle_id', $circles)
+            ->pluck('id');
+        $employeeList = EmployeeList::whereIn('created_by', $sameOfficeIds)
+            ->where('approve', 'Approved')
+            ->get();  // Get all records, no pagination
+    } elseif ($circles == null && $divisions !== null) {
+        // Fetch employees in the same division
+        $sameOfficeIds = User::select('id')
+            ->where('forest_division_id', $divisions)
+            ->pluck('id');
+        $employeeList = EmployeeList::whereIn('created_by', $sameOfficeIds)
+            ->where('approve', 'Approved')
+            ->get();  // Get all records, no pagination
+    } else {
+        // Fetch all employees approved
+        $employeeList = EmployeeList::where('approve', 'approved')->get();  // Get all records, no pagination
+    }
 
-                $trainingInfo = [];
-                for ($i = 0; $i < count($trainingNames); $i++) {
-                    $trainingInfo[] = [
-                        'training_name' => $trainingNames[$i],
-                        'institute' => $institutions[$i] ?? '',
-                    ];
+    // Split the employee list into chunks of 100
+    $chunks = $employeeList->chunk(100);
+
+    // Process each chunk and generate a PDF
+    $pdfs = [];
+
+    foreach ($chunks as $index => $chunk) {
+        $chunkReport = [];
+
+        foreach ($chunk as $employee) {
+            $jobHistories = [];
+            $trainingHistories = [];
+            $educationHistories = [];
+            $mamlaHistories = [];
+
+            // Process job histories
+            foreach ($employee->allJob as $job) {
+                $workPlace_bn = '';
+                $workPlace_en = '';
+
+                if ($job->circle_list_id !== null && $job->division_list_id == null) {
+                    $workPlace_bn = $job->circle_list->name_bn ?? '';
+                    $workPlace_en = $job->circle_list->name_en ?? '';
+                } elseif ($job->division_list_id !== null && $job->circle_list_id !== null) {
+                    $workPlace_bn = $job->division_list->name_bn ?? '';
+                    $workPlace_en = $job->division_list->name_en ?? '';
+                } elseif ($job->level_2 !== null) {
+                    $workPlace_bn = $job->level_2 ?? '';
+                    $workPlace_en = $job->level_2 ?? '';
+                } elseif ($job->academy_type !== null) {
+                    $workPlace_bn = $job->academy_type ?? '';
+                    $workPlace_en = $job->academy_type ?? '';
+                } else {
+                    $workPlace_bn = $job->institutename ?? '';
+                    $workPlace_en = $job->institutename ?? '';
                 }
 
-                $seniorityListReport[] = [
-                    'employee_name_bn' => $employee->fullname_bn ?? '',
-                    'employee_name_en' => $employee->fullname_en ?? '',
-                    'designation_bn' => $employee->designation->name_bn ?? '',
-                    'designation_en' => $employee->designation->name_en ?? '',
-                    'fjoining_date' => $employee->fjoining_date ?? '',
-                    'dob' => $employee->date_of_birth ?? '',
-                    'home_district_bn' => $employee->home_district->name_bn ?? '',
-                    'home_district_en' => $employee->home_district->name_en ?? '',
-                    'revenue_id' => $employee->projectrevenue_id ?? '',
-                    'project_id' => $employee->project_id ?? '',
-                    'promotion_date' => $employee->promotion->go_issue_date ?? '',
-                    'regularization_date' => $employee->date_of_regularization ?? '',
-                    'training_info' => $trainingInfo,
-                    'circle_name_bn' => $employee->jobhistory->circle_list->name_bn ?? '',
-                    'circle_name_en' => $employee->jobhistory->circle_list->name_en ?? '',
-                    'office_name' => $employee->jobhistory->level_2 ?? '',
-                    'joining_date' => $employee->jobhistory->joining_date ?? '',
-                    'division_name_bn' => $employee->jobhistory->division_list->name_bn ?? '',
-                    'division_name_en' => $employee->jobhistory->division_list->name_en ?? '',
-                    'range_name_bn' => $employee->jobhistory->range_list->name_bn ?? '',
-                    'range_name_en' => $employee->jobhistory->range_list->name_en ?? '',
-                    'beat_name_bn' => $employee->jobhistory->beat_list->name_bn ?? '',
-                    'beat_name_en' => $employee->jobhistory->beat_list->name_en ?? '',
-                    'joining_type_bn' => $employee->projectrevenue->project_revenue_bn ?? '',
-                    'joining_type_en' => $employee->projectrevenue->project_revenue_en ?? '',
-                    'project_name_bn' => $employee->project->name_bn ?? '',
-                    'project_name_en' => $employee->project->name_en ?? '',
+                $jobHistories[] = [
+                    'work_place_bn' => $workPlace_bn,
+                    'work_place_en' => $workPlace_en,
+                    'start_date' => $job->joining_date ?? '',
+                    'end_date' => $job->release_date ?? '',
                 ];
             }
 
-            $seniorityListReport = collect($seniorityListReport); // FIX HERE
+            // Process training histories
+            foreach ($employee->training_list as $training) {
+                $trainingHistories[] = [
+                    'training_name' => $training->training_name ?? '',
+                ];
+            }
 
+            // Process education histories
+            foreach ($employee->educationHistory as $education) {
+                $educationHistories[] = [
+                    'education_name_bn' => $education->name_of_exam->name_bn ?? '',
+                    'education_name_en' => $education->name_of_exam->name_en ?? '',
+                    'board_name_bn' => $education->exam_board->name_bn ?? '',
+                    'board_name_en' => $education->exam_board->name_en ?? '',
+                ];
+            }
 
-            // Generate a PDF for the current chunk
-            $pdf = PDF::loadView('admin.employeeLists.seniorityListReportDownload', compact('seniorityListReport'), [], [
-                'margin_top' => 20,
-                'margin_bottom' => 15,
-                'margin_left' => 18,
-                'margin_right' => 18,
-                'format' => 'A4',
-                'orientation' => 'landscape',
-                'default_font_size' => '15',
-                'default_font' => 'nsikosh',
-            ]);
+            // Process mamla histories
+            foreach ($employee->mamlaHistory as $mamla) {
+                $mamlaHistories[] = [
+                    'mamla_name_bn' => $mamla->name_bn ?? '',
+                    'mamla_name_en' => $mamla->name_en ?? '',
+                    'mamla_start' => $mamla->mamla_start ?? '',
+                    'mamla_end' => $mamla->mamla_end ?? '',
+                    'comment' => $mamla->remzrk ?? '',
+                ];
+            }
 
-            $pdfFileName = 'seniorityListReport_' . ($chunkIndex + 1) . '.pdf';
-            $pdfPath = storage_path('app/public/' . $pdfFileName);
+            // Calculate total job duration
+            $totalDuration = Carbon::now()->diff(Carbon::createFromFormat('d/m/Y', $employee->fjoining_date));
+
+            $total_job_bn = sprintf('%d বছর, %d মাস, %d দিন', $totalDuration->y, $totalDuration->m, $totalDuration->d);
+            $total_job_en = sprintf('%d years, %d months, %d days', $totalDuration->y, $totalDuration->m, $totalDuration->d);
+
+            // Add all the details to the chunk report
+            $chunkReport[] = [
+                'employee_name_bn' => $employee->fullname_bn ?? '',
+                'employee_name_en' => $employee->fullname_en ?? '',
+                'designation_bn' => $employee->designation->name_bn ?? '',
+                'designation_en' => $employee->designation->name_en ?? '',
+                'grade_bn' => $employee->grade->name_bn ?? '',
+                'grade_en' => $employee->grade->name_en ?? '',
+                'promotion_grade_bn' => $employee->promotion->grade->name_bn ?? '',
+                'promotion_grade_en' => $employee->promotion->grade->name_en ?? '',
+                'dob' => $employee->date_of_birth ?? '',
+                'home_district_bn' => $employee->home_district->name_bn ?? '',
+                'home_district_en' => $employee->home_district->name_en ?? '',
+                'gender_bn' => $employee->gender->name_bn ?? '',
+                'gender_en' => $employee->gender->name_en ?? '',
+                'permanent_address_bn' => $employee->permanent->thana_upazila->name_bn ?? '',
+                'permanent_village' => $employee->permanent->flat_house ?? '',
+                'permanent_post' => $employee->permanent->post_office ?? '',
+                'permanent_district_bn' => $employee->permanent->thana_upazila->district->name_bn ?? '',
+                'permanent_district_en' => $employee->permanent->thana_upazila->district->name_en ?? '',
+                'permanent_address_en' => $employee->permanent->thana_upazila->name_en ?? '',
+                'present_address_bn' => $employee->present->thana_upazila->name_bn ?? '',
+                'present_village' => $employee->present->flat_house ?? '',
+                'present_post' => $employee->present->post_office ?? '',
+                'present_district_bn' => $employee->present->thana_upazila->district->name_bn ?? '',
+                'present_district_en' => $employee->present->thana_upazila->district->name_en ?? '',
+                'present_address_en' => $employee->present->thana_upazila->name_en ?? '',
+                'fjoining_date' => $employee->fjoining_date ?? '',
+                'promotion_date' => $employee->promotion->go_issue_date ?? '',
+                'circle_name_bn' => $employee->jobhistory->circle_list->name_bn ?? '',
+                'circle_name_en' => $employee->jobhistory->circle_list->name_en ?? '',
+                'office_name' => $employee->jobhistory->level_2 ?? '',
+                'joining_date' => $employee->jobhistory->joining_date ?? '',
+                'division_name_bn' => $employee->jobhistory->division_list->name_bn ?? '',
+                'division_name_en' => $employee->jobhistory->division_list->name_en ?? '',
+                'range_name_bn' => $employee->jobhistory->range_list->name_bn ?? '',
+                'range_name_en' => $employee->jobhistory->range_list->name_en ?? '',
+                'beat_name_bn' => $employee->jobhistory->beat_list->name_bn ?? '',
+                'beat_name_en' => $employee->jobhistory->beat_list->name_en ?? '',
+                'revenue_id' => $employee->projectrevenue_id ?? '',
+                'project_id' => $employee->project_id ?? '',
+                'project_name_bn' => $employee->project->name_bn ?? '',
+                'project_name_en' => $employee->project->name_en ?? '',
+                'job_histories' => $jobHistories,
+                'total_job_bn' => $total_job_bn,
+                'total_job_en' => $total_job_en,
+                'quota_bn' => $employee->quota->name_bn ??  '',
+                'quota_en' => $employee->quota->name_en ??  '',
+                'relation_bn' => $employee->freedomfighter->name_bn ??  '',
+                'relation_en' => $employee->freedomfighter->name_en ??  '',
+                'fighter_name' => $employee->freedomfighter_name ??  '',
+                'fighter_address' => $employee->freedomfighter_address ??  '',
+                'fighter_number' => $employee->freedomfighter_go ??  '',
+                'training_histories' => $trainingHistories,
+                'education_histories' => $educationHistories,
+                'mamla_histories' => $mamlaHistories,
+                'prl_date' => $employee->prl_date ?? '',
+            ];
+        }
+
+        // Generate the PDF for the chunk
+        $pdf = PDF::loadView('admin.employeeLists.threeMonthsReportDownload', compact('userId', 'chunkReport'), [], [
+            'margin_top' => 20,
+            'margin_bottom' => 15,
+            'margin_left' => 18,
+            'margin_right' => 18,
+            'format' => 'A4',
+            'orientation' => 'landscape',
+            'default_font_size' => '15',
+            'default_font' => 'nsikosh',
+        ]);
+
+        // Store the PDF in the $pdfs array
+        $pdfs[] = $pdf;
+    }
+
+    // Zip and return all PDFs (optional for better handling)
+    $zipFile = storage_path('app/reports.zip');
+    $zip = new \ZipArchive();
+    if ($zip->open($zipFile, \ZipArchive::CREATE) === true) {
+        foreach ($pdfs as $index => $pdf) {
+            $pdfPath = storage_path("app/three_month_report_{$index}.pdf");
             $pdf->save($pdfPath);
-            $pdfPaths[] = $pdfPath;
+            $zip->addFile($pdfPath, "three_month_report_{$index}.pdf");
         }
-
-        // Create a ZIP file containing all PDFs
-        $zip = new \ZipArchive();
-        if ($zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE)) {
-            foreach ($pdfPaths as $pdfPath) {
-                $zip->addFile($pdfPath, basename($pdfPath));
-            }
-            $zip->close();
-        }
-
-        // Cleanup individual PDF files
-        foreach ($pdfPaths as $pdfPath) {
-            unlink($pdfPath);
-        }
-
-        // Return the ZIP file for download
-        return response()->download($zipPath)->deleteFileAfterSend(true);
+        $zip->close();
     }
 
+    // Return the ZIP file for download
+    return response()->download($zipFile)->deleteFileAfterSend(true);
+}
 
-
-
-
-
-
-    public function downloadThreeMonthsReport()
-    {
-        $userId = Auth::id();
-        $threeMonthsReport = [];
-
-        // Fetch the user's info (forest_circle_id, forest_division_id)
-        $userInfo = User::select('forest_circle_id', 'forest_division_id')
-            ->where('id', $userId)
-            ->first();
-
-        $divisions = $userInfo->forest_division_id;
-        $circles = $userInfo->forest_circle_id;
-        $locale = App::getLocale();
-        $columname = $locale === 'bn' ? 'name_bn' : 'name_en';
-
-        // Fetch employee data based on circle/division (No pagination)
-        if ($circles !== null && $divisions == null) {
-            // Fetch employees in the same circle
-            $sameOfficeIds = User::select('id')
-                ->where('forest_circle_id', $circles)
-                ->pluck('id');
-            $employeeList = EmployeeList::whereIn('created_by', $sameOfficeIds)
-                ->where('approve', 'Approved')
-                ->get();  // Get all records, no pagination
-        } elseif ($circles == null && $divisions !== null) {
-            // Fetch employees in the same division
-            $sameOfficeIds = User::select('id')
-                ->where('forest_division_id', $divisions)
-                ->pluck('id');
-            $employeeList = EmployeeList::whereIn('created_by', $sameOfficeIds)
-                ->where('approve', 'Approved')
-                ->get();  // Get all records, no pagination
-        } else {
-            // Fetch all employees approved
-            $employeeList = EmployeeList::where('approve', 'approved')->get();  // Get all records, no pagination
-        }
-
-        // Split the employee list into chunks of 100
-        $chunks = $employeeList->chunk(100);
-
-        // Process each chunk and generate a PDF
-        $pdfs = [];
-
-        foreach ($chunks as $index => $chunk) {
-            $chunkReport = [];
-
-            foreach ($chunk as $employee) {
-                $jobHistories = [];
-                $trainingHistories = [];
-                $educationHistories = [];
-                $mamlaHistories = [];
-
-                // Process job histories
-                foreach ($employee->allJob as $job) {
-                    $workPlace_bn = '';
-                    $workPlace_en = '';
-
-                    if ($job->circle_list_id !== null && $job->division_list_id == null) {
-                        $workPlace_bn = $job->circle_list->name_bn ?? '';
-                        $workPlace_en = $job->circle_list->name_en ?? '';
-                    } elseif ($job->division_list_id !== null && $job->circle_list_id !== null) {
-                        $workPlace_bn = $job->division_list->name_bn ?? '';
-                        $workPlace_en = $job->division_list->name_en ?? '';
-                    } elseif ($job->level_2 !== null) {
-                        $workPlace_bn = $job->level_2 ?? '';
-                        $workPlace_en = $job->level_2 ?? '';
-                    } elseif ($job->academy_type !== null) {
-                        $workPlace_bn = $job->academy_type ?? '';
-                        $workPlace_en = $job->academy_type ?? '';
-                    } else {
-                        $workPlace_bn = $job->institutename ?? '';
-                        $workPlace_en = $job->institutename ?? '';
-                    }
-
-                    $jobHistories[] = [
-                        'work_place_bn' => $workPlace_bn,
-                        'work_place_en' => $workPlace_en,
-                        'start_date' => $job->joining_date ?? '',
-                        'end_date' => $job->release_date ?? '',
-                    ];
-                }
-
-                // Process training histories
-                foreach ($employee->training_list as $training) {
-                    $trainingHistories[] = [
-                        'training_name' => $training->training_name ?? '',
-                    ];
-                }
-
-                // Process education histories
-                foreach ($employee->educationHistory as $education) {
-                    $educationHistories[] = [
-                        'education_name_bn' => $education->name_of_exam->name_bn ?? '',
-                        'education_name_en' => $education->name_of_exam->name_en ?? '',
-                        'board_name_bn' => $education->exam_board->name_bn ?? '',
-                        'board_name_en' => $education->exam_board->name_en ?? '',
-                    ];
-                }
-
-                // Process mamla histories
-                foreach ($employee->mamlaHistory as $mamla) {
-                    $mamlaHistories[] = [
-                        'mamla_name_bn' => $mamla->name_bn ?? '',
-                        'mamla_name_en' => $mamla->name_en ?? '',
-                        'mamla_start' => $mamla->mamla_start ?? '',
-                        'mamla_end' => $mamla->mamla_end ?? '',
-                        'comment' => $mamla->remzrk ?? '',
-                    ];
-                }
-
-                // Calculate total job duration
-                $totalDuration = Carbon::now()->diff(Carbon::createFromFormat('d/m/Y', $employee->fjoining_date));
-
-                $total_job_bn = sprintf('%d বছর, %d মাস, %d দিন', $totalDuration->y, $totalDuration->m, $totalDuration->d);
-                $total_job_en = sprintf('%d years, %d months, %d days', $totalDuration->y, $totalDuration->m, $totalDuration->d);
-
-                // Add all the details to the chunk report
-                $chunkReport[] = [
-                    'employee_name_bn' => $employee->fullname_bn ?? '',
-                    'employee_name_en' => $employee->fullname_en ?? '',
-                    'designation_bn' => $employee->designation->name_bn ?? '',
-                    'designation_en' => $employee->designation->name_en ?? '',
-                    'grade_bn' => $employee->grade->name_bn ?? '',
-                    'grade_en' => $employee->grade->name_en ?? '',
-                    'promotion_grade_bn' => $employee->promotion->grade->name_bn ?? '',
-                    'promotion_grade_en' => $employee->promotion->grade->name_en ?? '',
-                    'dob' => $employee->date_of_birth ?? '',
-                    'home_district_bn' => $employee->home_district->name_bn ?? '',
-                    'home_district_en' => $employee->home_district->name_en ?? '',
-                    'gender_bn' => $employee->gender->name_bn ?? '',
-                    'gender_en' => $employee->gender->name_en ?? '',
-                    'permanent_address_bn' => $employee->permanent->thana_upazila->name_bn ?? '',
-                    'permanent_village' => $employee->permanent->flat_house ?? '',
-                    'permanent_post' => $employee->permanent->post_office ?? '',
-                    'permanent_district_bn' => $employee->permanent->thana_upazila->district->name_bn ?? '',
-                    'permanent_district_en' => $employee->permanent->thana_upazila->district->name_en ?? '',
-                    'permanent_address_en' => $employee->permanent->thana_upazila->name_en ?? '',
-                    'present_address_bn' => $employee->present->thana_upazila->name_bn ?? '',
-                    'present_village' => $employee->present->flat_house ?? '',
-                    'present_post' => $employee->present->post_office ?? '',
-                    'present_district_bn' => $employee->present->thana_upazila->district->name_bn ?? '',
-                    'present_district_en' => $employee->present->thana_upazila->district->name_en ?? '',
-                    'present_address_en' => $employee->present->thana_upazila->name_en ?? '',
-                    'fjoining_date' => $employee->fjoining_date ?? '',
-                    'promotion_date' => $employee->promotion->go_issue_date ?? '',
-                    'circle_name_bn' => $employee->jobhistory->circle_list->name_bn ?? '',
-                    'circle_name_en' => $employee->jobhistory->circle_list->name_en ?? '',
-                    'office_name' => $employee->jobhistory->level_2 ?? '',
-                    'joining_date' => $employee->jobhistory->joining_date ?? '',
-                    'division_name_bn' => $employee->jobhistory->division_list->name_bn ?? '',
-                    'division_name_en' => $employee->jobhistory->division_list->name_en ?? '',
-                    'range_name_bn' => $employee->jobhistory->range_list->name_bn ?? '',
-                    'range_name_en' => $employee->jobhistory->range_list->name_en ?? '',
-                    'beat_name_bn' => $employee->jobhistory->beat_list->name_bn ?? '',
-                    'beat_name_en' => $employee->jobhistory->beat_list->name_en ?? '',
-                    'revenue_id' => $employee->projectrevenue_id ?? '',
-                    'project_id' => $employee->project_id ?? '',
-                    'project_name_bn' => $employee->project->name_bn ?? '',
-                    'project_name_en' => $employee->project->name_en ?? '',
-                    'job_histories' => $jobHistories,
-                    'total_job_bn' => $total_job_bn,
-                    'total_job_en' => $total_job_en,
-                    'quota_bn' => $employee->quota->name_bn ?? '',
-                    'quota_en' => $employee->quota->name_en ?? '',
-                    'relation_bn' => $employee->freedomfighter->name_bn ?? '',
-                    'relation_en' => $employee->freedomfighter->name_en ?? '',
-                    'fighter_name' => $employee->freedomfighter_name ?? '',
-                    'fighter_address' => $employee->freedomfighter_address ?? '',
-                    'fighter_number' => $employee->freedomfighter_go ?? '',
-                    'training_histories' => $trainingHistories,
-                    'education_histories' => $educationHistories,
-                    'mamla_histories' => $mamlaHistories,
-                    'prl_date' => $employee->prl_date ?? '',
-                ];
-            }
-
-            // Generate the PDF for the chunk
-            $pdf = PDF::loadView('admin.employeeLists.threeMonthsReportDownload', compact('userId', 'chunkReport'), [], [
-                'margin_top' => 20,
-                'margin_bottom' => 15,
-                'margin_left' => 18,
-                'margin_right' => 18,
-                'format' => 'A4',
-                'orientation' => 'landscape',
-                'default_font_size' => '15',
-                'default_font' => 'nsikosh',
-            ]);
-
-            // Store the PDF in the $pdfs array
-            $pdfs[] = $pdf;
-        }
-
-        // Zip and return all PDFs (optional for better handling)
-        $zipFile = storage_path('app/reports.zip');
-        $zip = new \ZipArchive();
-        if ($zip->open($zipFile, \ZipArchive::CREATE) === true) {
-            foreach ($pdfs as $index => $pdf) {
-                $pdfPath = storage_path("app/three_month_report_{$index}.pdf");
-                $pdf->save($pdfPath);
-                $zip->addFile($pdfPath, "three_month_report_{$index}.pdf");
-            }
-            $zip->close();
-        }
-
-        // Return the ZIP file for download
-        return response()->download($zipFile)->deleteFileAfterSend(true);
-    }
 
 
 
@@ -2561,11 +2622,11 @@ class EmployeeListController extends Controller
 
         $quotas = Quotum::pluck($columname, 'id')->prepend(trans('global.pleaseSelect'), '');
 
-        $designations = Designation::pluck($columname, 'id')->prepend(trans('global.pleaseSelect'), '');
+		$designations = Designation::pluck($columname, 'id')->prepend(trans('global.pleaseSelect'), '');
 
         $freedomfighters = FreedomFighteRelation::pluck($columname, 'id')->prepend(trans('global.pleaseSelect'), '');
 
-        return view('admin.employeeLists.create', compact('designations', 'batches', 'blood_groups', 'departmental_exams', 'freedomfighters', 'genders', 'grades', 'home_districts', 'joiningexaminfos', 'license_types', 'marital_status', 'projectrevenues', 'projects', 'quotas', 'religions'));
+        return view('admin.employeeLists.create', compact('designations','batches', 'blood_groups', 'departmental_exams', 'freedomfighters', 'genders', 'grades', 'home_districts', 'joiningexaminfos', 'license_types', 'marital_status', 'projectrevenues', 'projects', 'quotas', 'religions'));
     }
 
     public function store(StoreEmployeeListRequest $request)
@@ -2622,7 +2683,7 @@ class EmployeeListController extends Controller
             $employeeList->addMedia(storage_path('tmp/uploads/' . basename($request->input('fjoining_letter'))))->toMediaCollection('fjoining_letter');
         }
 
-        if ($request->input('transfer_order', false)) {
+		if ($request->input('transfer_order', false)) {
             $employeeList->addMedia(storage_path('tmp/uploads/' . basename($request->input('transfer_order'))))->toMediaCollection('transfer_order');
         }
 
@@ -2630,7 +2691,7 @@ class EmployeeListController extends Controller
             $employeeList->addMedia(storage_path('tmp/uploads/' . basename($request->input('date_of_gazette_if_any'))))->toMediaCollection('date_of_gazette_if_any');
         }
 
-        if ($request->input('ptr_upload', false)) {
+		if ($request->input('ptr_upload', false)) {
             $employeeList->addMedia(storage_path('tmp/uploads/' . basename($request->input('ptr_upload'))))->toMediaCollection('ptr_upload');
         }
 
@@ -2660,7 +2721,6 @@ class EmployeeListController extends Controller
     public function edit(EmployeeList $employeeList)
     {
 
-        // /dd($employeeList);
         $locale = App::getLocale();
         $batchColumn = $locale === 'bn' ? 'batch_bn' : 'batch_en';
         $columname = $locale === 'bn' ? 'name_bn' : 'name_en';
@@ -2696,19 +2756,18 @@ class EmployeeListController extends Controller
 
         $quotas = Quotum::pluck($columname, 'id')->prepend(trans('global.pleaseSelect'), '');
 
-        $designations = Designation::pluck($columname, 'id')->prepend(trans('global.pleaseSelect'), '');
+		$designations = Designation::pluck($columname, 'id')->prepend(trans('global.pleaseSelect'), '');
 
 
         $freedomfighters = FreedomFighteRelation::pluck($columname, 'id')->prepend(trans('global.pleaseSelect'), '');
 
         $employeeList->load('batch', 'home_district', 'marital_statu', 'gender', 'religion', 'blood_group', 'license_type', 'projectrevenue', 'joiningexaminfo', 'departmental_exam', 'project', 'grade', 'quota', 'freedomfighter');
 
-        return view('admin.employeeLists.edit', compact('designations', 'batches', 'blood_groups', 'departmental_exams', 'employeeList', 'freedomfighters', 'genders', 'grades', 'home_districts', 'joiningexaminfos', 'license_types', 'marital_status', 'projectrevenues', 'projects', 'quotas', 'religions'));
+        return view('admin.employeeLists.edit', compact('designations','batches', 'blood_groups', 'departmental_exams', 'employeeList', 'freedomfighters', 'genders', 'grades', 'home_districts', 'joiningexaminfos', 'license_types', 'marital_status', 'projectrevenues', 'projects', 'quotas', 'religions'));
     }
 
     public function update(UpdateEmployeeListRequest $request, EmployeeList $employeeList)
     {
-        dd($request->all());
         $employeeList->update($request->all());
 
         if ($request->input('birth_certificate_upload', false)) {
@@ -2799,7 +2858,7 @@ class EmployeeListController extends Controller
             $employeeList->date_of_gazette_if_any->delete();
         }
 
-        if ($request->input('ptr_upload', false)) {
+		if ($request->input('ptr_upload', false)) {
             if (!$employeeList->ptr_upload || $request->input('ptr_upload') !== $employeeList->ptr_upload->file_name) {
                 if ($employeeList->ptr_upload) {
                     $employeeList->ptr_upload->delete();
@@ -2880,38 +2939,72 @@ class EmployeeListController extends Controller
 
 
     public function approve($id)
-    {
-        $employee = EmployeeList::find($id);
+	{
+		$employee = EmployeeList::find($id);
 
-        if ($employee) {
-            $employee->approve = 'Approved';
-            $employee->approveby = Auth::id();
-            $employee->save();
-
-
-            return redirect()->back()->with('success', 'অনুমোদনটি সফলভাবে সম্পন্ন হয়েছে।');
-        }
+		if ($employee) {
+			$employee->approve = 'waiting';
+			$employee->approveby = Auth::id();
+			$employee->save();
 
 
-        return redirect()->back()->with('error', 'অনুগ্রহপূর্বক আবার চেষ্টা করুন');
-    }
-
-    public function send($id)
-    {
-        $employee = EmployeeList::find($id);
-        // dd($employee);
-
-        if ($employee) {
-            $employee->approve = 'pending';
-            $employee->save();
+			return redirect()->back()->with('success', 'অনুমোদনটি সফলভাবে সম্পন্ন হয়েছে।');
+		}
 
 
-            return redirect()->back()->with('success', 'তথ্যট অনুমোদনের জন্য পাঠানো হয়েছে।');
-        }
+		return redirect()->back()->with('error', 'অনুগ্রহপূর্বক আবার চেষ্টা করুন');
+	}
+
+	public function final_approve($id)
+	{
+		$employee = EmployeeList::find($id);
+
+		if ($employee) {
+			$employee->approve = 'Approved';
+			$employee->approveby = Auth::id();
+			$employee->save();
 
 
-        return redirect()->back()->with('error', 'অনুগ্রহপূর্বক আবার চেষ্টা করুন');
-    }
+			return redirect()->back()->with('success', 'অনুমোদনটি সফলভাবে সম্পন্ন হয়েছে।');
+		}
+
+
+		return redirect()->back()->with('error', 'অনুগ্রহপূর্বক আবার চেষ্টা করুন');
+	}
+
+	public function send($id)
+	{
+		$employee = EmployeeList::find($id);
+		// dd($employee);
+
+		if ($employee) {
+			$employee->approve = 'pending';
+			$employee->save();
+
+
+			return redirect()->back()->with('success', 'তথ্যট অনুমোদনের জন্য পাঠানো হয়েছে।');
+		}
+
+
+		return redirect()->back()->with('error', 'অনুগ্রহপূর্বক আবার চেষ্টা করুন');
+	}
+
+	public function send_back($id)
+	{
+		$employee = EmployeeList::find($id);
+		// dd($employee);
+
+		if ($employee) {
+			$employee->approve = null;
+			$employee->save();
+
+
+			return redirect()->back()->with('success', 'তথ্যট ফেরত পাঠানো হয়েছে।');
+		}
+
+
+		return redirect()->back()->with('error', 'অনুগ্রহপূর্বক আবার চেষ্টা করুন');
+	}
 
 
     public function massDestroy(MassDestroyEmployeeListRequest $request)
@@ -3007,45 +3100,45 @@ class EmployeeListController extends Controller
         $columname = $locale === 'bn' ? 'name_bn' : 'name_en';
         $deucationDegree = ExamDegree::all();
         $employeeList = EmployeeList::with([
-            'batch',
-            'home_district',
-            'marital_statu',
-            'gender',
-            'religion',
-            'blood_group',
-            'license_type',
-            'joiningexaminfo',
-            'grade',
-            'quota',
-            // Load educations and sort them by ID in ascending order
-            'educations' => function ($query) {
-                $query->orderBy('id', 'asc'); // Adjust 'id' to the appropriate column if needed
-            },
-            'trainings' => function ($query) {
-                $query->orderBy('id', 'asc');
-            },
-            'professionales' => function ($query) {
-                $query->orderBy('id', 'asc');
-            },
-            'addressdetailes' => function ($query) {
-                $query->orderBy('id', 'asc');
-            },
-            'emergencecontactes' => function ($query) {
-                $query->orderBy('id', 'asc');
-            },
-            'jobhistories' => function ($query) {
-                $query->orderBy('id', 'asc');
-            },
-            'employeepromotions' => function ($query) {
-                $query->orderBy('id', 'asc');
-            },
-            'leaverecords' => function ($query) {
-                $query->orderBy('id', 'asc');
-            },
-            'travelRecords' => function ($query) {
-                $query->orderBy('id', 'asc');
-            },
-        ])->find($request->id);
+        'batch',
+        'home_district',
+        'marital_statu',
+        'gender',
+        'religion',
+        'blood_group',
+        'license_type',
+        'joiningexaminfo',
+        'grade',
+        'quota',
+        // Load educations and sort them by ID in ascending order
+        'educations' => function ($query) {
+            $query->orderBy('id', 'asc'); // Adjust 'id' to the appropriate column if needed
+        },
+		'trainings' => function ($query) {
+            $query->orderBy('id', 'asc');
+        },
+		'professionales' => function ($query) {
+            $query->orderBy('id', 'asc');
+        },
+		'addressdetailes' => function ($query) {
+            $query->orderBy('id', 'asc');
+        },
+		'emergencecontactes' => function ($query) {
+            $query->orderBy('id', 'asc');
+        },
+		'jobhistories' => function ($query) {
+            $query->orderBy('id', 'asc');
+        },
+		'employeepromotions' => function ($query) {
+            $query->orderBy('id', 'asc');
+        },
+		'leaverecords' => function ($query) {
+            $query->orderBy('id', 'asc');
+        },
+		'travelRecords' => function ($query) {
+            $query->orderBy('id', 'asc');
+        },
+    ])->find($request->id);
 
         if (!$employeeList) {
             abort(404);
@@ -3056,15 +3149,15 @@ class EmployeeListController extends Controller
 
 
         $pdf = PDF::loadView('admin.employeeLists.pdf', compact('employeeList', 'columname', 'deucationDegree'), [], [
-            'margin_top' => 20,
-            'margin_bottom' => 15,
-            'margin_left' => 18,
-            'margin_right' => 18,
-            'format' => 'A4',
-            'orientation' => 'portrait',  // Added orientation option
-            'default_font_size' => '15',
-            'default_font' => 'nsikosh',
-        ]);
+			'margin_top' => 20,
+			'margin_bottom' => 15,
+			'margin_left' => 18,
+			'margin_right' => 18,
+			'format' => 'A4',
+			'orientation' => 'portrait',  // Added orientation option
+			'default_font_size' => '15',
+			'default_font' => 'nsikosh',
+		]);
 
 
 
@@ -3072,150 +3165,166 @@ class EmployeeListController extends Controller
 
         $name = $employeeList->employeeid . '_' . $employeeList->fullname_en . '_employee.pdf';
         //return $pdf->download($name);
-        return $pdf->stream($name);
+		    return $pdf->stream($name);
 
     }
     public function employeedata(Request $request)
-    {
-        // Load employee data along with related models, including educations
-        $employeeList = EmployeeList::with([
-            'batch',
-            'home_district',
-            'marital_statu',
-            'gender',
-            'religion',
-            'blood_group',
-            'license_type',
-            'joiningexaminfo',
-            'grade',
-            'quota',
-            // Load educations and sort them by ID in ascending order
-            'educations' => function ($query) {
-                $query->orderBy('id', 'asc'); // Adjust 'id' to the appropriate column if needed
-            },
-            'trainings' => function ($query) {
-                $query->orderBy('id', 'asc');
-            },
-            'professionales' => function ($query) {
-                $query->orderBy('id', 'asc');
-            },
-            'addressdetailes' => function ($query) {
-                $query->orderBy('id', 'asc');
-            },
-            'emergencecontactes' => function ($query) {
-                $query->orderBy('id', 'asc');
-            },
-            'jobhistories' => function ($query) {
-                $query->orderBy('id', 'asc');
-            },
-            'employeepromotions' => function ($query) {
-                $query->orderBy('id', 'asc');
-            },
-            'leaverecords' => function ($query) {
-                $query->orderBy('id', 'asc');
-            },
-            'travelRecords' => function ($query) {
-                $query->orderBy('id', 'asc');
-            },
-        ])->find($request->id);
+{
+    // Load employee data along with related models, including educations
+    $employeeList = EmployeeList::with([
+        'batch',
+        'home_district',
+        'marital_statu',
+        'gender',
+        'religion',
+        'blood_group',
+        'license_type',
+        'joiningexaminfo',
+        'grade',
+        'quota',
+        // Load educations and sort them by ID in ascending order
+        'educations' => function ($query) {
+            $query->orderBy('id', 'asc'); // Adjust 'id' to the appropriate column if needed
+        },
+		'trainings' => function ($query) {
+            $query->orderBy('id', 'asc');
+        },
+		'professionales' => function ($query) {
+            $query->orderBy('id', 'asc');
+        },
+		'addressdetailes' => function ($query) {
+            $query->orderBy('id', 'asc');
+        },
+		'emergencecontactes' => function ($query) {
+            $query->orderBy('id', 'asc');
+        },
+		'jobhistories' => function ($query) {
+            $query->orderBy('id', 'asc');
+        },
+		'employeepromotions' => function ($query) {
+            $query->orderBy('id', 'asc');
+        },
+		'leaverecords' => function ($query) {
+            $query->orderBy('id', 'asc');
+        },
+		'travelRecords' => function ($query) {
+            $query->orderBy('id', 'asc');
+        },
+    ])->find($request->id);
 
-        // Check if employeeList is found
-        if (!$employeeList) {
-            return redirect()->route('admin.employeeLists.index')->with('error', 'Employee not found.');
-        }
-
-        return view('admin.employeeLists.employeedata', compact('employeeList'));
+    // Check if employeeList is found
+    if (!$employeeList) {
+        return redirect()->route('admin.employeeLists.index')->with('error', 'Employee not found.');
     }
 
+    return view('admin.employeeLists.employeedata', compact('employeeList'));
+}
 
-    public function upcoming_retirement_list()
-    {
-        // Retrieve filters from session or set defaults
-        $start_date = Session::get('start_date', now()->toDateString());
-        $end_date = Session::get('end_date', now()->addMonths(3)->toDateString());
-        $designation_id = Session::get('designation_id');
-        $division_id = Session::get('division_id');
-        $circle_id = Session::get('circle_id');
 
-        // Get authenticated user info
-        $userId = Auth::id();
-        $userInfo = User::select('forest_circle_id', 'forest_division_id')->find($userId);
+ public function upcoming_retirement_list()
+{
+    // Retrieve start_date and end_date from session
+    $start_date = Session::get('start_date');
+    $end_date = Session::get('end_date');
+    $designation_id = Session::get('designation_id');
+    $division_id = Session::get('division_id');
+    $circle_id = Session::get('circle_id');
 
-        // Build employee query
-        $employeeQuery = EmployeeList::where('approve', 'Approved');
-
-        // Apply filters
-        if ($designation_id) {
-            $employeeQuery->where('designation_id', $designation_id);
-        }
-        if ($division_id || $circle_id) {
-            $sameOfficeIds = User::when($division_id, fn($query) => $query->where('forest_division_id', $division_id))
-                                 ->when($circle_id, fn($query) => $query->orWhere('forest_circle_id', $circle_id))
-                                 ->pluck('id');
-            $employeeQuery->whereIn('created_by', $sameOfficeIds);
-        }
-
-        // Additional filtering based on user circle/division
-        if ($userInfo->forest_circle_id && !$userInfo->forest_division_id) {
-            $sameOfficeIds = User::where('forest_circle_id', $userInfo->forest_circle_id)->pluck('id');
-            $employeeQuery->whereIn('created_by', $sameOfficeIds);
-        } elseif (!$userInfo->forest_circle_id && $userInfo->forest_division_id) {
-            $sameOfficeIds = User::where('forest_division_id', $userInfo->forest_division_id)->pluck('id');
-            $employeeQuery->whereIn('created_by', $sameOfficeIds);
-        }
-
-        // Apply date range and fetch results
-        $employeeList = (clone $employeeQuery)->whereBetween('prl_date', [$start_date, $end_date])
-                                              ->orderBy('prl_date', 'asc')
-                                              ->paginate(10);
-
-        $data = $employeeQuery->whereBetween('prl_date', [$start_date, $end_date])->count();
-        $designations = Designation::all();
-        $forest_divisions = ForestDivision::all();
-        $forest_circles = ForestState::all();
-
-        return view('admin.retirement.index', compact('employeeList', 'forest_divisions', 'forest_circles', 'data', 'designations'));
+    // If no dates are set in the session, use the current date and 3 months later
+    if (!$start_date && !$end_date) {
+        $start_date = now()->toDateString();  // Current date
+        $end_date = now()->addMonths(3)->toDateString();  // 3 months later
     }
 
+    // Retrieve the authenticated user's ID and info
+    $userId = Auth::id();
+    $userInfo = User::select('forest_circle_id', 'forest_division_id')
+                    ->where('id', $userId)
+                    ->first();
 
-    public function search_retirement(Request $request)
-    {
-        // Parse the start and end dates from the form (assuming dd/mm/yyyy format)
-        $start_date = Carbon::createFromFormat('d/m/Y', $request->input('start_date'))->format('Y-m-d');
-        $end_date = Carbon::createFromFormat('d/m/Y', $request->input('end_date'))->format('Y-m-d');
-        $designation_id = $request->input('designation_id');
-        $division_id = $request->input('division_id');
-        $circle_id = $request->input('circle_id');
+    $userDivision = $userInfo->forest_division_id;
+    $userCircle = $userInfo->forest_circle_id;
 
-        // Store the dates in the session
-        Session::put([
-            'start_date' => $start_date,
-            'end_date' => $end_date,
-            'designation_id' => $designation_id,
-            'circle_id' => $circle_id,
-            'division_id' => $division_id
-        ]);
+    // Start building the employee query
+    $employeeQuery = EmployeeList::where('approve', 'Approved');
 
-        // Redirect to the upcoming retirement list
-        return redirect()->route('admin.upcoming_retirement_list');
+    if($designation_id){
+        $employeeQuery->where('designation_id',$designation_id);
+    }
+    if($division_id){
+        $sameOfficeIds = User::where('forest_division_id', $division_id)->pluck('id');
+        $employeeQuery->whereIn('created_by', $sameOfficeIds);
+    }
+    if($circle_id){
+        $sameOfficeIds = User::where('forest_circle_id', $circle_id)->pluck('id');
+        $employeeQuery->whereIn('created_by', $sameOfficeIds);
     }
 
-    public function entry_list()
-    {
-        $employeeQuery = EmployeeList::with(['approve_user.circle', 'approve_user.division'])
-        ->select('approveby', \DB::raw('COUNT(*) as count'))
-        ->where('approve', 'Approved')
-        ->groupBy('approveby')
-        ->get();
-
-        // Calculate the total count
-        $totalCount = $employeeQuery->sum('count');
-
-        return view('admin.employeeLists.entryList', compact('employeeQuery', 'totalCount'));
-
+    // Apply filtering logic based on user's circle/division
+    if ($userCircle && !$userDivision) {
+        // Fetch employees in the same circle
+        $sameOfficeIds = User::where('forest_circle_id', $userCircle)->pluck('id');
+        $employeeQuery->whereIn('created_by', $sameOfficeIds);
+    } elseif (!$userCircle && $userDivision) {
+        // Fetch employees in the same division
+        $sameOfficeIds = User::where('forest_division_id', $userDivision)->pluck('id');
+        $employeeQuery->whereIn('created_by', $sameOfficeIds);
     }
 
-    public function employeedata_delete($id)
+    // Add date range filter and ordering
+    $employeeList = $employeeQuery->whereBetween('prl_date', [$start_date, $end_date])
+                                  ->orderBy('prl_date', 'asc')
+                                  ->paginate(10);
+
+    // Count the employees matching the conditions
+    $data = $employeeQuery->whereBetween('prl_date', [$start_date, $end_date])->count();
+    $designations = Designation::all();
+    $forest_divisions = ForestDivision::all();
+    $forest_circles = ForestState::all();
+
+    // Return the view with data
+    return view('admin.retirement.index', compact('employeeList','forest_divisions', 'forest_circles', 'data','designations'));
+}
+
+public function search_retirement(Request $request)
+{
+    // Parse the start and end dates from the form (assuming dd/mm/yyyy format)
+    $start_date = Carbon::createFromFormat('d/m/Y', $request->input('start_date'))->format('Y-m-d');
+    $end_date = Carbon::createFromFormat('d/m/Y', $request->input('end_date'))->format('Y-m-d');
+    $designation_id = $request->input('designation_id');
+    $division_id = $request->input('division_id');
+    $circle_id = $request->input('circle_id');
+
+    // Store the dates in the session
+    Session::put([
+        'start_date' => $start_date,
+        'end_date' => $end_date,
+        'designation_id' => $designation_id,
+        'circle_id' => $circle_id,
+        'division_id' => $division_id
+    ]);
+
+    // Redirect to the upcoming retirement list
+    return redirect()->route('admin.upcoming_retirement_list');
+}
+
+public function entry_list()
+{
+    $employeeQuery = EmployeeList::with(['approve_user.circle', 'approve_user.division'])
+    ->select('approveby', \DB::raw('COUNT(*) as count'))
+    ->where('approve', 'Approved')
+    ->groupBy('approveby')
+    ->get();
+
+// Calculate the total count
+$totalCount = $employeeQuery->sum('count');
+
+return view('admin.employeeLists.entryList', compact('employeeQuery', 'totalCount'));
+
+}
+
+
+public function employeedata_delete($id)
     {
         $employee = EmployeeList::find($id);
 
@@ -3229,29 +3338,28 @@ class EmployeeListController extends Controller
         return redirect()->back()->with('error', 'অনুগ্রহপূর্বক আবার চেষ্টা করুন');
     }
 
-    public function pendingChange()
-    {
-        $pendingQuery = Editlog::with(['employee', 'user']);
+	public function pendingChange()
+	{
+		$userId = Auth::id();
+		$userInfo = User::select('forest_circle_id', 'forest_division_id')->find($userId);
 
-        $userId = Auth::id();
-        $userInfo = User::select('forest_circle_id', 'forest_division_id')->find($userId);
+		$pendingQuery = Editlog::with(['employee', 'user'])->where('status', 0);
 
-        // Additional filtering based on user circle/division
-        if ($userInfo->forest_circle_id && !$userInfo->forest_division_id) {
-            $sameOfficeIds = User::where('forest_circle_id', $userInfo->forest_circle_id)->pluck('id');
-            $pendingQuery->whereIn('edit_by', $sameOfficeIds);
-        } elseif (!$userInfo->forest_circle_id && $userInfo->forest_division_id) {
-            $sameOfficeIds = User::where('forest_division_id', $userInfo->forest_division_id)->pluck('id');
-            $pendingQuery->whereIn('edit_by', $sameOfficeIds);
-        }
+		// Apply sameOfficeIds filter based on user's location
+		if ($userInfo->forest_circle_id && !$userInfo->forest_division_id) {
+			$sameOfficeIds = User::where('forest_circle_id', $userInfo->forest_circle_id)->pluck('id');
+			$pendingQuery->whereIn('edit_by', $sameOfficeIds);
+		} elseif (!$userInfo->forest_circle_id && $userInfo->forest_division_id) {
+			$sameOfficeIds = User::where('forest_division_id', $userInfo->forest_division_id)->pluck('id');
+			$pendingQuery->whereIn('edit_by', $sameOfficeIds);
+		}
+
+		$pendingChange = $pendingQuery->orderBy('id', 'desc')->paginate(20);
+
+		return view('admin.employeeLists.pending-change', compact('pendingChange'));
+	}
 
 
-        $pendingChange = Editlog::orderBy('id', 'desc')
-            ->where('status', 0)
-            ->paginate(20);
-
-        return view('admin.employeeLists.pending-change', compact('pendingChange'));
-    }
 
     public function approveMultiple(Request $request)
     {
@@ -3280,13 +3388,13 @@ class EmployeeListController extends Controller
         return redirect()->back()->with('success', 'Selected changes have been approved and applied.');
     }
 
-   // Controller Method
-    public function office_wise_entry_report()
+	public function office_wise_entry_report()
 {
     // Get counts grouped by created_by
     $userCounts = EmployeeList::select('created_by', \DB::raw('COUNT(*) as total'))
         ->where('approve', 'Approved')
         ->where('deleted_at', null)
+		->where('status', 1)
         ->groupBy('created_by')
         ->get();
 
@@ -3434,6 +3542,7 @@ public function office_wise_entry_report_pdf()
     $userCounts = EmployeeList::select('created_by', \DB::raw('COUNT(*) as total'))
         ->where('approve', 'Approved')
         ->where('deleted_at', null)
+		->where('status', 1)
         ->groupBy('created_by')
         ->get();
 
@@ -3584,11 +3693,6 @@ public function office_wise_entry_report_pdf()
 
     return $pdf->stream('অফিসভিত্তিক এন্ট্রি রিপোর্ট.pdf');
 }
-
-
-
-
-
 
 
 

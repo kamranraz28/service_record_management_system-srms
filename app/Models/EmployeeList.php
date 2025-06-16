@@ -282,6 +282,11 @@ class EmployeeList extends Model implements HasMedia
         return $this->getMedia('first_joining_order')->last();
     }
 
+    public function getTransferOrderAttribute()
+    {
+        return $this->getMedia('transfer_order')->last();
+    }
+
     public function getFjoiningLetterAttribute()
     {
         return $this->getMedia('fjoining_letter')->last();

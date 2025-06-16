@@ -32,20 +32,85 @@
     <div class="card mb-1">
         <div class="table-responsive p-3">
 
-            <div class="row justify-content-center align-items-center g-1">
-            <div class="col">
-    <form action="{{ route('admin.searchEmployee') }}" method="POST">
+            <div class="row justify-content-center align-items-center g-3">
+
+			<div class="col">
+    <form action="{{ route('admin.search_employee') }}" method="POST">
         @csrf
+        <div class="mb-3">
+            <!-- Label added above the input -->
+            <label for="employee_id" class="form-label">
+			@if (app()->getLocale() === 'bn')
+                কর্মকর্তা/কর্মচারী আইডি দিয়ে অনুসন্ধান
+            @else
+                Search by Employee ID
+            @endif
+			</label>
+            <div class="input-group">
+                <input id="employee_id" name="id" type="text" class="form-control px-5" placeholder="{{ trans('global.search') }}...">
+                <button type="submit" class="btn btn-success ms-1">
+                    <i class="fa fa-search" aria-hidden="true"></i>
+                    {{ trans('global.search') }}
+                </button>
+            </div>
+        </div>
+
+    </form>
+</div>
+
+<div class="col">
+<form action="{{ route('admin.search_employee_by_name') }}" method="POST">
+    @csrf
+    <div class="mb-3">
+        <label for="employee_name" class="form-label">
+            @if (app()->getLocale() === 'bn')
+                কর্মকর্তা/কর্মচারীর নাম দিয়ে অনুসন্ধান
+            @else
+                Search by Employee Name
+            @endif
+        </label>
         <div class="input-group">
-            <span class="material-icons-outlined position-absolute translate-middle-y top-50 fs-5 start-0 ms-3">search</span>
-            <input type="text" name="id" class="form-control px-5" placeholder="Search...">
-            <button type="submit" class="btn btn-success ms-3">
-                <i class="fa fa-search" aria-hidden="true"></i>
-                {{ trans('global.search') }}
+            <input id="employee_name" name="name" type="text" class="form-control px-5" placeholder="{{ trans('global.search') }}...">
+            <button type="submit" class="btn btn-success ms-1">
+                <i class="fa fa-search" aria-hidden="true"></i> {{ trans('global.search') }}
             </button>
+        </div>
+    </div>
+</form>
+</div>
+
+                <div class="col">
+    <form action="{{ route('admin.search_designation') }}" method="POST">
+        @csrf
+        <div class="mb-3">
+            <!-- Label added above the select -->
+            <label for="designation_id" class="form-label">
+			@if (app()->getLocale() === 'bn')
+                পদবি দিয়ে অনুসন্ধান
+            @else
+                Search by Designation
+            @endif
+			</label>
+            <div class="input-group">
+                <select id="designation_id" name="designation_id[]" class="form-control select2 px-5">
+                                        <option value="" disabled selected>{{ trans('global.pleaseSelect') }}</option>
+
+                    @foreach($designations as $designation)
+                        <option value="{{ $designation->id }}">{{ $designation->name_bn }}</option>
+                    @endforeach
+                </select>
+                <button type="submit" class="btn btn-success ms-1">
+                    <i class="fa fa-search" aria-hidden="true"></i>
+                    {{ trans('global.search') }}
+                </button>
+            </div>
         </div>
     </form>
 </div>
+
+
+
+
 
                 <div class="col text-end">
 
@@ -163,8 +228,8 @@
                                 'awards',
                                 'otherservicejobs',
                                 'criminalprosecutiones',
-                                'policeVerification',
-                                'timeScale',
+                                'policeVerifications',
+                                'timeScales',
                                 'others',
                             ];
 
@@ -208,7 +273,7 @@
                             @endif
 
                         </a>
-                        @can('employee_list_delete')
+						@can('employee_list_delete')
                         <a href="{{ route('admin.employeedata.delete', ['id' => $empID]) }}"
                             class="btn btn-sm btn-danger"
                             onclick="return confirm('{{ app()->getLocale() === 'bn' ? 'আপনি কি নিশ্চিতভাবে ডিলিট করতে চান?' : 'Are you sure you want to delete?' }}')">
