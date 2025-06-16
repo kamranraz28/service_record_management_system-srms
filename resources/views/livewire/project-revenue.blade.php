@@ -81,8 +81,8 @@
 
 
 
-        @if (empty($projectRevenueExam) || count($projectRevenueExam) === 0)
-        @else
+        @if (!empty($projectRevenueExam) && count($projectRevenueExam) > 0 && $revenueType == 2)
+
             <div class="form-group">
                 <label class="required" for="departmental_exam_id">
 
@@ -194,11 +194,11 @@
                 @endif
                 <span class="help-block">{{ trans('cruds.employeeList.fields.date_of_regularization_helper') }}</span>
             </div>
-			
-			
-			
+
+
+
         @endif
-		
+
 		{{--@if ($joininginfo != 3)
 		<div class="form-group{{ $joininginfo !== null && $joininginfo != 2 ? '' : ' d-none' }}">
                             <label for="regularization_office_orde_go">
@@ -263,7 +263,7 @@
                     </div>
 
         @endif -->
-		
+
 		<div class="form-group">
 			<label for="first_designation_id">পদবি (যে পদে প্রথম যোগদান করেছিলেন)*</label>
 			<select class="form-select select2 {{ $errors->has('designation') ? 'is-invalid' : '' }}"
@@ -326,7 +326,7 @@
             <span class="help-block">{{ trans('cruds.employeeList.fields.class_helper') }}</span>
         </div>
 
-        
+
     </div>
 </div>
 
