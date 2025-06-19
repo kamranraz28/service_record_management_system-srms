@@ -4,8 +4,9 @@
 use App\Http\Controllers\Admin\EmployeeListController;
 use App\Http\Controllers\Admin\AddressdetaileController;
 
-Route::redirect('/', '/srms/login')->name('home');
-
+Route::get('/', function () {
+    return view('auth.login');
+})->name('home');
 
 Route::get('/home', function () {
     if (session('status')) {
