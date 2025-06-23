@@ -8,6 +8,9 @@ Route::get('/', function () {
     return view('auth.login');
 })->name('home');
 
+// Route::redirect('/', '/srms/login')->name('home');
+
+
 Route::get('/home', function () {
     if (session('status')) {
         return redirect()->route('admin.home')->with('status', session('status'));
@@ -64,6 +67,8 @@ Route::group(['prefix' => 'admin', 'as' => 'admin.', 'namespace' => 'Admin', 'mi
 	Route::get('seniority_list_report', [EmployeeListController::class,'seniority_list_report'])->name('seniority_list_report');
 	Route::get('seniority_list_report_download', [EmployeeListController::class,'seniority_list_report_download'])->name('seniority_list_report_download');
         Route::post('seniority_list_designation_report_download', [EmployeeListController::class, 'downloadSeniorityListDesignation'])->name('downloadSeniorityListDesignation');
+	Route::get('seniority_list_report_download_excel', [EmployeeListController::class,'seniority_list_report_download_excel'])->name('seniority_list_report_download_excel');
+
 
 	Route::get('three_months_report_filtering', [EmployeeListController::class,'three_months_report_designation'])->name('three_months_report_designation');
  Route::post('three_months_designation_report_download', [EmployeeListController::class, 'downloadThreeMonthsDesignation'])->name('downloadThreeMonthsDesignation');

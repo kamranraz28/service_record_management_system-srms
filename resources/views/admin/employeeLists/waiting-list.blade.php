@@ -46,19 +46,19 @@
                 {{--<div class="col text-end">
 
                     @can('employee_list_create')
-                          
+
                         <a class="btn btn-success" href="{{ route('admin.employee-lists.create') }}">
                             <i class="fa fa-plus" aria-hidden="true"></i>
-                            {{ trans('cruds.employeeList.title_singular') }} {{ trans('global.add') }} 
+                            {{ trans('cruds.employeeList.title_singular') }} {{ trans('global.add') }}
                         </a>
-						
+
 						<a class="btn btn-success" href="{{ route('admin.employee-lists.waitingList') }}">
-                            
+
                             @if (app()->getLocale() === 'bn')
 											অপেক্ষমান তালিকা
                                     @else
                                         Waiting List
-                                    @endif 
+                                    @endif
                         </a>
                     @endcan
                 </div>--}}
@@ -108,13 +108,13 @@
                         </div>
                     </div>
                 </div>
-         
+
 
 
 
 
                 <div class="col">
-                    
+
                         <p class="badge bg-warning"
 						   style="background-color: #5d1f1f17 !important; color: #5d1f1f !important; padding: 6px !important; border-radius: 25px; width: 300px; overflow: hidden;">
 						   @if(app()->getLocale() === 'bn')
@@ -124,7 +124,7 @@
 						   @endif
 						</p>
 
-                    
+
 
 
 
@@ -196,7 +196,19 @@
 								Send to Approval
 							@endif
 						</a>
-                        </a>
+                        @can('employee_list_delete')
+                        <a href="{{ route('admin.employeedata.delete', ['id' => $empID]) }}"
+                            class="btn btn-sm btn-danger"
+                            onclick="return confirm('{{ app()->getLocale() === 'bn' ? 'আপনি কি নিশ্চিতভাবে ডিলিট করতে চান?' : 'Are you sure you want to delete?' }}')">
+
+                                @if (app()->getLocale() === 'bn')
+                                    ডিলিট
+                                @else
+                                    Delete
+                                @endif
+
+                            </a>
+                        @endcan
                     </div>
                 </div>
             </div>

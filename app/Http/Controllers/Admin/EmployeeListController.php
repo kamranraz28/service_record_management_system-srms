@@ -49,7 +49,7 @@ use Yajra\DataTables\Facades\DataTables;
 use PDF;
 use Carbon\Carbon;
 use Session;
-
+use Rap2hpoutre\FastExcel\FastExcel;
 
 
 class EmployeeListController extends Controller
@@ -87,8 +87,8 @@ class EmployeeListController extends Controller
         $query->where('employeeid', $employeeId);
     }
 
-    if (!empty($designationId)) {
-        $query->where('designation_id', $designationId);
+    if (!empty($designationId) && is_array($designationId)) {
+        $query->whereIn('designation_id', $designationId);
     }
 
     if (!empty($name)) {
@@ -879,7 +879,7 @@ public function search_designation(Request $request)
 	public function downloadThreeMonthsDesignation(Request $request)
     {
 
-        $designationId = $request->designation_id;;
+        $designationId = $request->designation_id;
 
 
         $desig = Designation::find($designationId);
@@ -2144,104 +2144,213 @@ $employeeList = $query->paginate(10);
     }
 
 
-    public function downloadSeniorityListDesignation(Request $request)
+//     public function downloadSeniorityListDesignation(Request $request)
+// {
+//     $designation_ids = $request->input('designation_id', []); // Retrieve multiple designation IDs as an array
+
+//     $seniorityListReport = [];
+
+//     // Fetch the selected designations
+//     $designations = Designation::whereIn('id', $designation_ids)->get();
+
+//     $userId = Auth::id();
+
+//         // Fetch the user's info (forest_circle_id, forest_division_id)
+//         $userInfo = User::select('forest_circle_id', 'forest_division_id')
+//             ->where('id', $userId)
+//             ->first();
+
+//         $userDivision = $userInfo->forest_division_id;
+//         $userCircle = $userInfo->forest_circle_id;
+
+//         $employeeQuery = EmployeeList::where('approve', 'Approved');
+
+
+//         // Determine filtering logic based on user's circle/division
+//         if ($userCircle && !$userDivision) {
+//             // Fetch employees in the same circle
+//             $sameOfficeIds = User::where('forest_circle_id', $userCircle)->pluck('id');
+//             $employeeQuery->whereIn('created_by', $sameOfficeIds);
+//         } elseif (!$userCircle && $userDivision) {
+//             // Fetch employees in the same division
+//             $sameOfficeIds = User::where('forest_division_id', $userDivision)->pluck('id');
+//             $employeeQuery->whereIn('created_by', $sameOfficeIds);
+//         }
+//     if (!empty($designation_ids)) {
+//         $employeeQuery->whereIn('designation_id', $designation_ids); // Filter employees by multiple designation IDs
+//     }
+
+//     $employeeList = $employeeQuery->get();
+
+//     foreach ($employeeList as $employee) {
+
+//         $trainingNames = $employee->training_list->pluck('training_name')->toArray();
+//         $institutions = $employee->training_list->pluck('institute_name')->toArray();
+
+//         $trainingInfo = [];
+//         for ($i = 0; $i < count($trainingNames); $i++) {
+//             $trainingInfo[] = [
+//                 'training_name' => $trainingNames[$i],
+//                 'institute' => $institutions[$i] ?? '',
+//             ];
+//         }
+
+//         $seniorityListReport[] = [
+//             'employee_name_bn' => $employee->fullname_bn ?? '',
+//             'employee_name_en' => $employee->fullname_en ?? '',
+//             'designation_bn' => $employee->designation->name_bn ?? '',
+//             'designation_en' => $employee->designation->name_en ?? '',
+//             'fjoining_date' => $employee->fjoining_date ?? '',
+//             'dob' => $employee->date_of_birth ?? '',
+//             'home_district_bn' => $employee->home_district->name_bn ?? '',
+//             'home_district_en' => $employee->home_district->name_en ?? '',
+//             'revenue_id' => $employee->projectrevenue_id ?? '',
+//             'project_id' => $employee->project_id ?? '',
+//             'promotion_date' => $employee->promotion->go_issue_date ?? '',
+//             'regularization_date' => $employee->date_of_regularization ?? '',
+//             'training_info' => $trainingInfo,
+//             'circle_name_bn' => $employee->jobhistory->circle_list->name_bn ?? '',
+//             'circle_name_en' => $employee->jobhistory->circle_list->name_en ?? '',
+//             'office_name' => $employee->jobhistory->level_2 ?? '',
+//             'joining_date' => $employee->jobhistory->joining_date ?? '',
+//             'division_name_bn' => $employee->jobhistory->division_list->name_bn ?? '',
+//             'division_name_en' => $employee->jobhistory->division_list->name_en ?? '',
+//             'range_name_bn' => $employee->jobhistory->range_list->name_bn ?? '',
+//             'range_name_en' => $employee->jobhistory->range_list->name_en ?? '',
+//             'beat_name_bn' => $employee->jobhistory->beat_list->name_bn ?? '',
+//             'beat_name_en' => $employee->jobhistory->beat_list->name_en ?? '',
+//             'joining_type_bn' => $employee->projectrevenue->project_revenue_bn ?? '',
+//             'joining_type_en' => $employee->projectrevenue->project_revenue_en ?? '',
+//             'project_name_bn' => $employee->project->name_bn ?? '',
+//             'project_name_en' => $employee->project->name_en ?? '',
+//         ];
+//     }
+
+//     // Load the view into a PDF
+//     $pdf = PDF::loadView('admin.employeeLists.seniorityReportDesignation', compact('seniorityListReport', 'designations'), [], [
+//         'margin_top' => 20,
+//         'margin_bottom' => 15,
+//         'margin_left' => 18,
+//         'margin_right' => 18,
+//         'format' => 'A4',
+//         'orientation' => 'landscape',
+//         'default_font_size' => '15',
+//         'default_font' => 'nsikosh',
+//     ]);
+
+//     $fileName = date('Y-m-d') . 'seniorityListReport.pdf';
+
+//     // Stream the PDF
+//     return $pdf->stream($fileName);
+// }
+
+public function downloadSeniorityListDesignation(Request $request)
 {
-    $designation_ids = $request->input('designation_id', []); // Retrieve multiple designation IDs as an array
+    $designation_ids = $request->input('designation_id', []);
+    $format = $request->input('download_format'); // 1 = PDF, 2 = Excel
 
     $seniorityListReport = [];
 
-    // Fetch the selected designations
     $designations = Designation::whereIn('id', $designation_ids)->get();
 
     $userId = Auth::id();
+    $userInfo = User::select('forest_circle_id', 'forest_division_id')->where('id', $userId)->first();
+    $userDivision = $userInfo->forest_division_id;
+    $userCircle = $userInfo->forest_circle_id;
 
-        // Fetch the user's info (forest_circle_id, forest_division_id)
-        $userInfo = User::select('forest_circle_id', 'forest_division_id')
-            ->where('id', $userId)
-            ->first();
+    $employeeQuery = EmployeeList::where('approve', 'Approved');
 
-        $userDivision = $userInfo->forest_division_id;
-        $userCircle = $userInfo->forest_circle_id;
+    if ($userCircle && !$userDivision) {
+        $sameOfficeIds = User::where('forest_circle_id', $userCircle)->pluck('id');
+        $employeeQuery->whereIn('created_by', $sameOfficeIds);
+    } elseif (!$userCircle && $userDivision) {
+        $sameOfficeIds = User::where('forest_division_id', $userDivision)->pluck('id');
+        $employeeQuery->whereIn('created_by', $sameOfficeIds);
+    }
 
-        $employeeQuery = EmployeeList::where('approve', 'Approved');
-
-
-        // Determine filtering logic based on user's circle/division
-        if ($userCircle && !$userDivision) {
-            // Fetch employees in the same circle
-            $sameOfficeIds = User::where('forest_circle_id', $userCircle)->pluck('id');
-            $employeeQuery->whereIn('created_by', $sameOfficeIds);
-        } elseif (!$userCircle && $userDivision) {
-            // Fetch employees in the same division
-            $sameOfficeIds = User::where('forest_division_id', $userDivision)->pluck('id');
-            $employeeQuery->whereIn('created_by', $sameOfficeIds);
-        }
     if (!empty($designation_ids)) {
-        $employeeQuery->whereIn('designation_id', $designation_ids); // Filter employees by multiple designation IDs
+        $employeeQuery->whereIn('designation_id', $designation_ids);
     }
 
     $employeeList = $employeeQuery->get();
 
     foreach ($employeeList as $employee) {
-
         $trainingNames = $employee->training_list->pluck('training_name')->toArray();
-        $institutions = $employee->training_list->pluck('institute_name')->toArray();
 
         $trainingInfo = [];
         for ($i = 0; $i < count($trainingNames); $i++) {
-            $trainingInfo[] = [
-                'training_name' => $trainingNames[$i],
-                'institute' => $institutions[$i] ?? '',
-            ];
+            $trainingInfo[] = ($i + 1) . '. ' . $trainingNames[$i];
         }
 
+        $isPermanent = $employee->date_of_regularization ? 'স্থায়ী' : 'অস্থায়ী';
+
         $seniorityListReport[] = [
-            'employee_name_bn' => $employee->fullname_bn ?? '',
-            'employee_name_en' => $employee->fullname_en ?? '',
-            'designation_bn' => $employee->designation->name_bn ?? '',
-            'designation_en' => $employee->designation->name_en ?? '',
-            'fjoining_date' => $employee->fjoining_date ?? '',
-            'dob' => $employee->date_of_birth ?? '',
-            'home_district_bn' => $employee->home_district->name_bn ?? '',
-            'home_district_en' => $employee->home_district->name_en ?? '',
-            'revenue_id' => $employee->projectrevenue_id ?? '',
-            'project_id' => $employee->project_id ?? '',
-            'promotion_date' => $employee->promotion->go_issue_date ?? '',
-            'regularization_date' => $employee->date_of_regularization ?? '',
-            'training_info' => $trainingInfo,
-            'circle_name_bn' => $employee->jobhistory->circle_list->name_bn ?? '',
-            'circle_name_en' => $employee->jobhistory->circle_list->name_en ?? '',
-            'office_name' => $employee->jobhistory->level_2 ?? '',
-            'joining_date' => $employee->jobhistory->joining_date ?? '',
-            'division_name_bn' => $employee->jobhistory->division_list->name_bn ?? '',
-            'division_name_en' => $employee->jobhistory->division_list->name_en ?? '',
-            'range_name_bn' => $employee->jobhistory->range_list->name_bn ?? '',
-            'range_name_en' => $employee->jobhistory->range_list->name_en ?? '',
-            'beat_name_bn' => $employee->jobhistory->beat_list->name_bn ?? '',
-            'beat_name_en' => $employee->jobhistory->beat_list->name_en ?? '',
-            'joining_type_bn' => $employee->projectrevenue->project_revenue_bn ?? '',
-            'joining_type_en' => $employee->projectrevenue->project_revenue_en ?? '',
-            'project_name_bn' => $employee->project->name_bn ?? '',
-            'project_name_en' => $employee->project->name_en ?? '',
+            'employee_name_bn'     => $employee->fullname_bn ?? '',
+            'designation_bn'       => $employee->designation->name_bn ?? '',
+            'home_district_bn'     => $employee->home_district->name_bn ?? '',
+            'dob'                  => $employee->date_of_birth ?? '',
+            'fjoining_date'        => $employee->fjoining_date ?? '',
+            'promotion_date'       => $employee->promotion->go_issue_date ?? '',
+            'regularization_date'  => $employee->date_of_regularization ?? '',
+            'joining_type_bn'      => $employee->projectrevenue->project_revenue_bn ?? '',
+            'project_name_bn'      => $employee->project->name_bn ?? '',
+            'circle_name_bn'       => $employee->jobhistory->circle_list->name_bn ?? '',
+            'division_name_bn'     => $employee->jobhistory->division_list->name_bn ?? '',
+            'range_name_bn'        => $employee->jobhistory->range_list->name_bn ?? '',
+            'beat_name_bn'         => $employee->jobhistory->beat_list->name_bn ?? '',
+            'office_name'          => $employee->jobhistory->level_2 ?? '',
+            'training_info'        => $trainingInfo,
+            'is_permanent'         => $isPermanent,  // <== Added here
         ];
     }
 
-    // Load the view into a PDF
-    $pdf = PDF::loadView('admin.employeeLists.seniorityReportDesignation', compact('seniorityListReport', 'designations'), [], [
-        'margin_top' => 20,
-        'margin_bottom' => 15,
-        'margin_left' => 18,
-        'margin_right' => 18,
-        'format' => 'A4',
-        'orientation' => 'landscape',
-        'default_font_size' => '15',
-        'default_font' => 'nsikosh',
-    ]);
+    if ($format == 1) {
+        $pdf = PDF::loadView('admin.employeeLists.seniorityReportDesignation', compact('seniorityListReport', 'designations'), [], [
+            'margin_top'        => 20,
+            'margin_bottom'     => 15,
+            'margin_left'       => 18,
+            'margin_right'      => 18,
+            'format'            => 'A4',
+            'orientation'       => 'landscape',
+            'default_font_size' => '15',
+            'default_font'      => 'nsikosh',
+        ]);
 
-    $fileName = date('Y-m-d') . 'seniorityListReport.pdf';
+        $fileName = date('Y-m-d') . '_seniorityListReport.pdf';
+        return $pdf->stream($fileName);
+    }
 
-    // Stream the PDF
-    return $pdf->stream($fileName);
+    if ($format == 2) {
+    $fileName = date('Y-m-d') . '_seniorityListReport.xlsx';
+
+    return (new FastExcel($seniorityListReport))->download($fileName, function ($row) {
+        static $i = 1;
+        return [
+            'ক্রমিক নং' => englishToBanglaNumber($i++),
+            'কর্মকর্তা/কর্মচারীর নাম' => $row['employee_name_bn'],
+            'পদের নাম' => $row['designation_bn'],
+            'নিজ জেলা' => $row['home_district_bn'],
+            'জন্ম তারিখ' => englishToBanglaNumber($row['dob']),
+            'নিয়োগ আদেশের তারিখ (এডহক/প্রকল্প)' => englishToBanglaNumber($row['fjoining_date']),
+            'চাকুরিতে প্রথম যোগদানের তারিখ' => englishToBanglaNumber($row['fjoining_date']),
+            'বর্তমান পদে যোগদানের তারিখ' => englishToBanglaNumber($row['promotion_date']),
+            'নিয়োগের খাত' => $row['joining_type_bn'],
+            'উন্নয়ন প্রকল্পের নাম' => $row['project_name_bn'],
+            'প্রকল্পে নিয়োগের ক্ষেত্রে রাজস্বখাতে যোগদানের তারিখ' => '',
+            'নিয়মিত নিযুক্তি/নিয়মিত করনের তারিখ' => englishToBanglaNumber($row['regularization_date']),
+            'চাকুরিতে স্থায়ী কিনা' => $row['is_permanent'] ?? '',
+            'বিশেষ প্রশিক্ষণ' => is_array($row['training_info']) ? implode("\n", $row['training_info']) : '',
+            'বর্তমান কর্মস্থল' =>
+                'অঞ্চলঃ ' . $row['circle_name_bn'] . ' ' . $row['office_name'] . "\n" .
+                'বিভাগঃ ' . $row['division_name_bn'] . "\n" .
+                'রেঞ্জঃ ' . $row['range_name_bn'] . "\n" .
+                'বিটঃ ' . $row['beat_name_bn'],
+        ];
+    });
+}
+
+
+    return redirect()->back()->with('error', 'Invalid format selected.');
 }
 
 
@@ -2362,6 +2471,79 @@ $employeeList = $query->paginate(10);
 }
 
 
+
+public function seniority_list_report_download_excel()
+{
+    ini_set('pcre.backtrack_limit', '5000000');
+    ini_set('pcre.recursion_limit', '5000000');
+
+    $userId = Auth::id();
+    $userInfo = User::select('forest_circle_id', 'forest_division_id')->find($userId);
+
+    $userDivision = $userInfo->forest_division_id;
+    $userCircle = $userInfo->forest_circle_id;
+
+    $employeeQuery = EmployeeList::where('approve', 'Approved');
+
+    // Filter by circle or division
+    if ($userCircle && !$userDivision) {
+        $sameOfficeIds = User::where('forest_circle_id', $userCircle)->pluck('id');
+        $employeeQuery->whereIn('created_by', $sameOfficeIds);
+    } elseif (!$userCircle && $userDivision) {
+        $sameOfficeIds = User::where('forest_division_id', $userDivision)->pluck('id');
+        $employeeQuery->whereIn('created_by', $sameOfficeIds);
+    }
+
+    // Get all employees
+    $employees = $employeeQuery->get();
+
+    $excelData = [];
+
+    foreach ($employees as $index => $employee) {
+        $trainingNames = $employee->training_list->pluck('training_name')->toArray();
+        $institutions = $employee->training_list->pluck('institute_name')->toArray();
+
+        $trainingDetails = [];
+        for ($i = 0; $i < count($trainingNames); $i++) {
+            $banglaNumber = englishToBanglaNumber($i + 1);
+            $trainingDetails[] = $banglaNumber . '. ' . ($trainingNames[$i] ?? '') . ' (' . ($institutions[$i] ?? '') . ')';
+        }
+        $trainingDetailsString = implode("\n", $trainingDetails);
+
+        $isPermanent = (!empty($employee->project_id))
+            ? (!empty($employee->date_of_regularization) ? 'স্থায়ী' : 'অস্থায়ী')
+            : 'স্থায়ী';
+
+        $excelData[] = [
+            'ক্রমিক' => englishToBanglaNumber($index + 1),
+            'কর্মকর্তা/কর্মচারীর নাম' => $employee->fullname_bn ?? '',
+            'পদবী' => $employee->designation->name_bn ?? '',
+            'স্থায়ী ঠিকানা জেলা' => $employee->home_district->name_bn ?? '',
+            'জন্ম তারিখ' => englishToBanglaNumber($employee->date_of_birth ?? ''),
+            'প্রথম নিয়োগের তারিখ (GO)' => englishToBanglaNumber($employee->fjoining_date ?? ''),
+            'প্রথম যোগদানের তারিখ' => englishToBanglaNumber($employee->fjoining_date ?? ''),
+            'পদোন্নতির তারিখ' => englishToBanglaNumber($employee->promotion->go_issue_date ?? ''),
+            'প্রকল্প/রাজস্ব/অ্যাডহক' => $employee->projectrevenue->project_revenue_bn ?? '',
+            'প্রকল্পের নাম' => $employee->project->name_bn ?? '',
+            'প্রকল্প থেকে স্থায়ীকরণের তারিখ' => englishToBanglaNumber($employee->date_of_regularization ?? ''),
+            'স্থায়ী কিনা?' => $isPermanent,
+            'প্রশিক্ষণের বিবরণ' => $trainingDetailsString,
+            'বর্তমান কর্মস্থল' => 'অঞ্চলঃ ' . ($employee->jobhistory->circle_list->name_bn ?? '') . ' '
+                . ($employee->jobhistory->level_2 ?? '') . "\n"
+                . 'বিভাগঃ ' . ($employee->jobhistory->division_list->name_bn ?? '') . "\n"
+                . 'রেঞ্জঃ ' . ($employee->jobhistory->range_list->name_bn ?? '') . "\n"
+                . 'বিটঃ ' . ($employee->jobhistory->beat_list->name_bn ?? ''),
+        ];
+    }
+
+    $date = now()->format('Y-m-d_H-i-s');
+    $fileName = "seniorityListReport_{$date}_bn.xlsx";
+    $filePath = storage_path("app/public/{$fileName}");
+
+    (new FastExcel($excelData))->export($filePath);
+
+    return response()->download($filePath)->deleteFileAfterSend(true);
+}
 
 
 
@@ -3248,8 +3430,8 @@ $employeeList = $query->paginate(10);
     // Start building the employee query
     $employeeQuery = EmployeeList::where('approve', 'Approved');
 
-    if($designation_id){
-        $employeeQuery->where('designation_id',$designation_id);
+    if (!empty($designation_id) && is_array($designation_id)) {
+        $employeeQuery->whereIn('designation_id', $designation_id);
     }
     if($division_id){
         $sameOfficeIds = User::where('forest_division_id', $division_id)->pluck('id');
@@ -3291,7 +3473,7 @@ public function search_retirement(Request $request)
     // Parse the start and end dates from the form (assuming dd/mm/yyyy format)
     $start_date = Carbon::createFromFormat('d/m/Y', $request->input('start_date'))->format('Y-m-d');
     $end_date = Carbon::createFromFormat('d/m/Y', $request->input('end_date'))->format('Y-m-d');
-    $designation_id = $request->input('designation_id');
+    $designationIds = $request->input('designation_id', []);
     $division_id = $request->input('division_id');
     $circle_id = $request->input('circle_id');
 
@@ -3299,7 +3481,7 @@ public function search_retirement(Request $request)
     Session::put([
         'start_date' => $start_date,
         'end_date' => $end_date,
-        'designation_id' => $designation_id,
+        'designation_id' => $designationIds,
         'circle_id' => $circle_id,
         'division_id' => $division_id
     ]);

@@ -76,13 +76,12 @@
             @endif
 			</label>
             <div class="input-group">
-                <select id="designation_id" name="designation_id" class="form-control select2 px-5">
-                    <option value="" disabled selected>{{ trans('global.pleaseSelect') }}</option>
+                <select id="designation_id" name="designation_id[]" class="form-control select2 px-5" multiple>
+
                     @foreach($designations as $designation)
                         <option value="{{ $designation->id }}">{{ $designation->name_bn }}</option>
                     @endforeach
                 </select>
-
             </div>
         </div>
 

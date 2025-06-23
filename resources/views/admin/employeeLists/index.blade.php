@@ -50,7 +50,6 @@
                 <input id="employee_id" name="id" type="text" class="form-control px-5" placeholder="{{ trans('global.search') }}...">
                 <button type="submit" class="btn btn-success ms-1">
                     <i class="fa fa-search" aria-hidden="true"></i>
-                    {{ trans('global.search') }}
                 </button>
             </div>
         </div>
@@ -72,7 +71,7 @@
         <div class="input-group">
             <input id="employee_name" name="name" type="text" class="form-control px-5" placeholder="{{ trans('global.search') }}...">
             <button type="submit" class="btn btn-success ms-1">
-                <i class="fa fa-search" aria-hidden="true"></i> {{ trans('global.search') }}
+                <i class="fa fa-search" aria-hidden="true"></i>
             </button>
         </div>
     </div>
@@ -92,8 +91,7 @@
             @endif
 			</label>
             <div class="input-group">
-                <select id="designation_id" name="designation_id[]" class="form-control select2 px-5">
-                                        <option value="" disabled selected>{{ trans('global.pleaseSelect') }}</option>
+                <select id="designation_id" name="designation_id[]" class="form-control select2 px-5" multiple>
 
                     @foreach($designations as $designation)
                         <option value="{{ $designation->id }}">{{ $designation->name_bn }}</option>
@@ -101,7 +99,7 @@
                 </select>
                 <button type="submit" class="btn btn-success ms-1">
                     <i class="fa fa-search" aria-hidden="true"></i>
-                    {{ trans('global.search') }}
+
                 </button>
             </div>
         </div>
@@ -273,19 +271,7 @@
                             @endif
 
                         </a>
-						@can('employee_list_delete')
-                        <a href="{{ route('admin.employeedata.delete', ['id' => $empID]) }}"
-                            class="btn btn-sm btn-danger"
-                            onclick="return confirm('{{ app()->getLocale() === 'bn' ? 'আপনি কি নিশ্চিতভাবে ডিলিট করতে চান?' : 'Are you sure you want to delete?' }}')">
 
-                                @if (app()->getLocale() === 'bn')
-                                    ডিলিট
-                                @else
-                                    Delete
-                                @endif
-
-                            </a>
-                        @endcan
                     </div>
                 </div>
             </div>

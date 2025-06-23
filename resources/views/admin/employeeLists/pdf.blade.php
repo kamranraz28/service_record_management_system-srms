@@ -274,7 +274,7 @@
                                 {{ $employeeList->blood_group->{$columname} ?? 'N/A' }}
                             </td>
                         </tr>
-                        
+
 
                         <tr>
                             <th>
@@ -285,9 +285,9 @@
 
                             </td>
                         </tr>
-                        
 
-                        
+
+
 
                         <tr>
                             <th>
@@ -298,7 +298,7 @@
 
                             </td>
                         </tr>
-                        
+
 
 
 
@@ -396,7 +396,7 @@
                         </tr>
 
                         @endif
-						
+
 						<tr>
 							<th>
 								@if (app()->getLocale() === 'bn')
@@ -853,8 +853,8 @@
                             <th>{{ trans('cruds.jobHistory.fields.joining_date') }}</th>
                             <th>{{ trans('cruds.jobHistory.fields.release_date') }}</th>
 							<th>মন্তব্য</th>
-                                            
-                                    
+
+
                         </tr>
                     </thead>
                     <tbody>
@@ -862,7 +862,7 @@
                         <tr>
                             <td>{{ englishToBanglaNumber($index + 1) }}</td> <!-- Serial Number Column -->
                             <td>{{ $jobHistory->office_unit->name_bn ?? 'N/A' }}</td>
-                            <td> 
+                            <td>
 							@if($jobHistory->institutename == null)
 							{{ $jobHistory->level_2 ?? 'N/A' }}
 							@else
@@ -1391,9 +1391,9 @@
                         </tr>
                         @endforeach
 
-                        
 
-                        
+
+
                     </tbody>
                 </table>
                 @endif
@@ -1401,9 +1401,12 @@
 
 
 
-                
+
             </div>
+
         </div>
+
+
     </div>
     <htmlpagefooter name="page-footer">
 

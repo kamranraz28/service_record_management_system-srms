@@ -9,14 +9,14 @@
                ত্রৈমাসিক প্রতিবেদন
             @else
                 Three Months Report
-            @endif 
+            @endif
         </div>
 		<br>
 		<br>
-		
-		
-		
-        
+
+
+
+
     </div>
 </div>
 
@@ -27,7 +27,7 @@
 					পূর্ণ প্রতিবেদন ডাউনলোড করুন
 				@else
 					Download Full Report
-				@endif 
+				@endif
 			</a>
 </div>
 <br>
@@ -48,8 +48,8 @@
             @endif
 			</label>
             <div class="input-group">
-                <select id="designation_id" name="designation_id" class="form-control select2 px-5" required>
-                    <option value="" disabled selected>{{ trans('global.pleaseSelect') }}</option>
+                <select id="designation_id" name="designation_id[]" class="form-control select2 px-5" multiple>
+
                     @foreach($designations as $designation)
                         <option value="{{ $designation->id }}">{{ $designation->name_bn }}</option>
                     @endforeach
@@ -60,7 +60,7 @@
 					ডাউনলোড করুন
 				@else
 					Download Report
-				@endif 
+				@endif
                 </button>
             </div>
         </div>
@@ -93,7 +93,7 @@
 					ডাউনলোড করুন
 				@else
 					Download Report
-				@endif 
+				@endif
                 </button>
             </div>
         </div>
@@ -126,7 +126,7 @@
 					ডাউনলোড করুন
 				@else
 					Download Report
-				@endif 
+				@endif
                 </button>
             </div>
         </div>
@@ -160,7 +160,7 @@
 					ডাউনলোড করুন
 				@else
 					Download Report
-				@endif 
+				@endif
                 </button>
             </div>
         </div>
@@ -195,7 +195,7 @@
 					ডাউনলোড করুন
 				@else
 					Download Report
-				@endif 
+				@endif
                 </button>
             </div>
         </div>
@@ -230,14 +230,14 @@
 					ডাউনলোড করুন
 				@else
 					Download Report
-				@endif 
+				@endif
                 </button>
             </div>
 
-            
+
         </div>
 
-        
+
     </form>
 </div>
 
